@@ -1,0 +1,10 @@
+**.project
+**.settings
+**.pydevproject
+**/__pycache__/
+**/.pytest_cache
+**/all_places.txt
+**.pyc
+**.properties
+**/wd_pr_ultimate.tsv
+**/langlogwarn.txt
