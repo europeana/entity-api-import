@@ -1,0 +1,1 @@
+#the concept solr docs will be generated in this folder
