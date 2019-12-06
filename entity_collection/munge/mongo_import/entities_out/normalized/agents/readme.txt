@@ -1,0 +1,1 @@
+#the agent solr docs will be generated in this folder

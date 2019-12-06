@@ -1,0 +1,1 @@
+#the place solr docs will be generated in this folder

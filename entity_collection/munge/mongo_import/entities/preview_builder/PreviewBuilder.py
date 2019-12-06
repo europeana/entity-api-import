@@ -182,10 +182,10 @@ class PreviewBuilder:
             return None
 
     def build_topConcept(self, entity_rows, language):
-        # TODO: update this method once top concepts dereferenceable
-        concepts = {}
-        concepts['def'] = 'Concept'
-        return concepts
+        # TODO: update this method once top entities dereferenceable
+        entities = {}
+        entities['def'] = 'Concept'
+        return entities
 
 
     def build_dateRange(self, entity_rows, language):
@@ -195,9 +195,10 @@ class PreviewBuilder:
     # and they are pulled in ad hoc from a static file
 
     def load_depictions(self):
-        image_files = ['agents.wikidata.images.csv', 'concepts.merge.images.csv']
+        image_files = ['agents.wikidata.images.csv', 'entities.merge.images.csv']
         for image_file in image_files:
-            with open(os.path.join(os.getcwd(), 'entities', 'resources', image_file), encoding="utf-8") as imgs:
+            current_dir=os.getcwd()
+            with open(os.path.join(current_dir, 'entities', 'resources', image_file), encoding="utf-8") as imgs:
                 for line in imgs.readlines():
                     (agent_id, image_id) = line.split(sep=",", maxsplit=1)
                     agent_id = agent_id.strip()

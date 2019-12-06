@@ -1,0 +1,1 @@
+#the organization solr docs will be generated in this folder
