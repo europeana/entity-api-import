@@ -18,13 +18,13 @@ class RelevanceCounter:
        and inserts these into the database for later retrieval.
    """
 
-    #MOSERVER = 'mongodb:localhost'
-    #MOPORT = 27017
-    #SOLR_URI = "http://sol1.eanadev.org:9191/solr/search_1/search?wt=json&rows=0"
-
     METRIC_PAGERANK = 'pagerank'
     METRIC_ENRICHMENT_HITS = 'europeana_enrichment_hits'
+    METRIC_WIKI_HITS = "wikipedia_hits"
     METRIC_TERM_HITS = 'europeana_string_hits'
+    
+    URI_MARKUP = 'URI_MARKUP'
+    QUERY_ENRICHMENT_HITS = "&q=\"" + URI_MARKUP + "\" AND contentTier:(2 OR 3 OR 4)"
     AGENT = 'agent'
     PLACE = 'place'
     CONCEPT = 'concept'
@@ -83,27 +83,43 @@ class RelevanceCounter:
 
     def get_raw_relevance_metrics(self, uri, representation):
         csr = self.db.cursor()
-        csr.execute("SELECT * FROM hits WHERE id=?", (uri,))
+        csr.execute("SELECT * FROM hits WHERE id='"+ uri + "'")
         first_row = csr.fetchone()
         if(first_row is not None):
             (_, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank) = first_row
             if(pagerank is None):
                 pagerank = 0
         else:
-            wikipedia_hits = -1
+            # wikipedia_hits is not used anymore
+            wikipedia_hits = -1 
             europeana_enrichment_hits = self.get_enrichment_count(uri)
             europeana_string_hits = self.get_label_count(representation)
-            pagerank = 0
-            csr.execute("INSERT INTO hits(id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank) VALUES (?, ?, ?, ?, ?)", (uri, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank))
+            wikidata_id = self.extract_wikidata_identifier(representation)
+            #TODO import page rank to DB file
+            #TODO use MetricRecord object
+            pagerank = 0.0
+            csr.execute("INSERT INTO hits(id, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank) VALUES (?, ?, ?, ?, ?, ?)", (uri, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank))
             self.db.commit()
         metrics = {
-            "wikipedia_hits" : wikipedia_hits,
-            "europeana_enrichment_hits" : europeana_enrichment_hits,
-            "europeana_string_hits" : europeana_string_hits,
-            "pagerank" : pagerank
+            self.METRIC_WIKI_HITS : wikipedia_hits,
+            self.METRIC_ENRICHMENT_HITS : europeana_enrichment_hits,
+            self.METRIC_TERM_HITS : europeana_string_hits,
+            self.METRIC_PAGERANK : pagerank
         }
         return metrics
 
+    def extract_wikidata_identifier(self, representation):
+        wikidata_id = None
+        WIKIDATA_PREFFIX = 'http://www.wikidata.entity/entity/'
+                
+        if('owlSameAs' in representation['representation'].keys()):
+            for uri in representation['representation']['owlSameAs']:
+                if(uri.startswith(WIKIDATA_PREFFIX)):
+                    wikidata_id = str(uri).replace(WIKIDATA_PREFFIX, '')
+                    print("has wikidata identifier: " + wikidata_id)
+                    break
+        return wikidata_id
+    
     def get_max_metrics(self):
         csr = self.db.cursor()
         csr.execute("SELECT MAX(europeana_enrichment_hits) as meeh, MAX(europeana_string_hits) as mesh, MAX(pagerank) as mpr, MAX(wikipedia_hits) mwph FROM hits")
@@ -132,13 +148,16 @@ class RelevanceCounter:
         return metrics
     
     def get_enrichment_count(self, uri):
-        qry = self.config.get_relevance_solr() + "&q=\"" + uri + "\""
+        qry = self.config.get_relevance_solr() + self.get_enrichment_count_query(uri)
         res = requests.get(qry)
         try:
             return res.json()['response']['numFound']
         except:
             return 0
 
+    def get_enrichment_count_query(self, uri):
+        return str(self.QUERY_ENRICHMENT_HITS).replace(self.URI_MARKUP, uri)
+              
     def get_label_count(self, representation):
         all_labels = []
         [all_labels.extend(l) for l in representation['prefLabel'].values()]

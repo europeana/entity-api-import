@@ -1,8 +1,12 @@
 import os, sys
 from _sqlite3 import connect
 import datetime
-
-
+from preview_builder import PreviewBuilder
+import HarvesterConfig
+from ranking_metrics import RelevanceCounter
+# TODO: Refactor to shrink this method
+import json
+        
 class LanguageValidator:
 
     # TODO: What to do with weird 'def' language tags all over the place?
@@ -54,18 +58,19 @@ class LanguageValidator:
 
 class ContextClassHarvester:
 
-    DEFAULT_CONFIG_SECTION = 'CONFIG'
-    HARVESTER_MONGO_HOST = 'harvester.mongo.host'
-    HARVESTER_MONGO_PORT = 'harvester.mongo.port'
+    #DEFAULT_CONFIG_SECTION = 'CONFIG'
+    #HARVESTER_MONGO_HOST = 'harvester.mongo.host'
+    #HARVESTER_MONGO_PORT = 'harvester.mongo.port'
     
-    ORGHARVESTER_MONGO_HOST = 'organization.harvester.mongo.host'
-    ORGHARVESTER_MONGO_PORT = 'organization.harvester.mongo.port'
+    #ORGHARVESTER_MONGO_HOST = 'organization.harvester.mongo.host'
+    #ORGHARVESTER_MONGO_PORT = 'organization.harvester.mongo.port'
+    
+    LOG_LOCATION = 'logs/entlogs/'
     
     CHUNK_SIZE = 250   # each file will consist of 250 entities
     WRITEDIR = os.path.join(os.path.dirname(__file__), '..', 'entities_out')
     CONFIG_DIR = os.path.join(os.path.dirname(__file__), '..', 'config')
     LANG_VALIDATOR = LanguageValidator()
-    LOG_LOCATION = 'logs/entlogs/'
     
     DC_IDENTIFIER = 'dc_identifier'
     ORGANIZATION_DOMAIN = 'organizationDomain'
@@ -189,8 +194,8 @@ class ContextClassHarvester:
         sys.path.append(os.path.join(os.path.dirname(__file__), 'preview_builder'))
         
         from pymongo import MongoClient
-        import PreviewBuilder
-        import HarvesterConfig
+        #import PreviewBuilder
+        #import HarvesterConfig
         
         self.config = HarvesterConfig.HarvesterConfig()
         #TODO: check if entity_class is still needed
@@ -268,8 +273,8 @@ class ContextClassHarvester:
         else:
             return self.write_dir + "/" + self.name + "/" + self.name + "_" + str(start) + "_" + str(start + ContextClassHarvester.CHUNK_SIZE) +  ".xml"
 
-    def grab_relevance_ratings(self, docroot, entity_id, entity_rows):
-        hitcounts = self.relevance_counter.get_raw_relevance_metrics(entity_id, entity_rows)
+    def grab_relevance_ratings(self, docroot, entity_id, representation):
+        hitcounts = self.relevance_counter.get_raw_relevance_metrics(entity_id, representation)
         eu_enrichments = hitcounts["europeana_enrichment_hits"]
         eu_terms = hitcounts["europeana_string_hits"]
         pagerank = hitcounts["pagerank"]
@@ -283,7 +288,7 @@ class ContextClassHarvester:
         self.add_field(docroot, 'europeana_term_hits', str(eu_terms))
         self.add_field(docroot, 'pagerank', str(pagerank))
         self.add_field(docroot, 'derived_score', str(ds))
-        self.add_suggest_filters(docroot, eu_terms)
+        self.add_suggest_filters(docroot, eu_enrichments)
         return True
 
     def process_address(self, docroot, entity_id, address):
@@ -320,14 +325,12 @@ class ContextClassHarvester:
             self.add_field(docroot, "modified", entity_rows["modified"].isoformat()+"Z")
 
     def process_representation(self, docroot, entity_id, entity_rows):
-        # TODO: Refactor to shrink this method
-        import json
         #all pref labels
         all_preflabels = []
         for characteristic in entity_rows[self.REPRESENTATION]:
             if(characteristic == "address"):
                 self.process_address(docroot, entity_id, entity_rows[self.REPRESENTATION]['address']['AddressImpl'])
-            elif str(characteristic) not in ContextClassHarvester.FIELD_MAP.keys():
+            elif (str(characteristic) not in ContextClassHarvester.FIELD_MAP.keys() and characteristic != 'about' and characteristic != 'id'):
                 # TODO: log this?
                 print("unmapped property: " + str(characteristic))
                 continue
@@ -444,10 +447,10 @@ class ContextClassHarvester:
         payload = self.preview_builder.build_preview(entity_type, entity_id, entity_rows[self.REPRESENTATION])
         return payload
 
-    def add_suggest_filters(self, docroot, term_hits):
+    def add_suggest_filters(self, docroot, enrichtment_hits):
         entity_type = self.name[0:len(self.name) - 1].capitalize()
         self.add_field(docroot, 'suggest_filters', entity_type)
-        if(term_hits > 0):
+        if(enrichtment_hits > 0):
             self.add_field(docroot, 'suggest_filters', 'in_europeana')
     
     def suggest_by_alt_label(self):
@@ -470,22 +473,21 @@ class ConceptHarvester(ContextClassHarvester):
 
     def __init__(self):
         # TODO check if 'eu.europeana.corelib.solr.entity.ConceptImpl' is correct and needed (see entityType column in the database)
-        #ContextClassHarvester.__init__(self, 'concepts', 'eu.europeana.corelib.solr.entity.ConceptImpl')
-        ContextClassHarvester.__init__(self, 'concepts')
+        #ContextClassHarvester.__init__(self, 'entities', 'eu.europeana.corelib.solr.entity.ConceptImpl')
+        ContextClassHarvester.__init__(self, 'entities')
         sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
-        from ranking_metrics import RelevanceCounter
         self.relevance_counter = RelevanceCounter.ConceptRelevanceCounter()
 
     def get_entity_count(self):
-        #concepts = self.client.annocultor_db.concept.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/concept/base).*$' }} )
-        concepts = self.client.annocultor_db.TermList.find({'entityType': 'ConceptImpl'}).count()
-        return concepts
+        #entities = self.client.annocultor_db.concept.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/concept/base).*$' }} )
+        entities = self.client.annocultor_db.TermList.find({'entityType': 'ConceptImpl'}).count()
+        return entities
 
     def build_entity_chunk(self, start):
-        #concepts = self.client.annocultor_db.concept.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/concept/base).*$' }} )[start:start + ContextClassHarvester.CHUNK_SIZE]
-        concepts = self.client.annocultor_db.TermList.find( {'entityType': 'ConceptImpl'}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
+        #entities = self.client.annocultor_db.concept.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/concept/base).*$' }} )[start:start + ContextClassHarvester.CHUNK_SIZE]
+        entities = self.client.annocultor_db.TermList.find( {'entityType': 'ConceptImpl'}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
         concepts_chunk = {}
-        for concept in concepts:
+        for concept in entities:
             concept_id = concept['codeUri']
             concepts_chunk[concept_id] = self.client.annocultor_db.TermList.find_one({ 'codeUri' : concept_id })
         return concepts_chunk
@@ -504,7 +506,6 @@ class AgentHarvester(ContextClassHarvester):
 
     def __init__(self):
         sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
-        import RelevanceCounter
         # TODO check if 'eu.europeana.corelib.solr.entity.AgentImpl' is correct and needed (see entityType column in the database)
         #ContextClassHarvester.__init__(self, 'agents', 'eu.europeana.corelib.solr.entity.AgentImpl')
         ContextClassHarvester.__init__(self, 'agents')
@@ -551,7 +552,6 @@ class PlaceHarvester(ContextClassHarvester):
 
     def __init__(self):
         sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
-        import RelevanceCounter
         #TODO: check if 'eu.europeana.corelib.solr.entity.PlaceImpl' still needed/used
         #ContextClassHarvester.__init__(self, 'places', 'eu.europeana.corelib.solr.entity.PlaceImpl')
         ContextClassHarvester.__init__(self, 'places')
@@ -586,7 +586,6 @@ class OrganizationHarvester(ContextClassHarvester):
 
     def __init__(self):
         sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
-        import RelevanceCounter
         #TODO: check if 'eu.europeana.corelib.solr.entity.OrganizationImpl' still needed/used
         #ContextClassHarvester.__init__(self, 'organizations', 'eu.europeana.corelib.solr.entity.OrganizationImpl')
         ContextClassHarvester.__init__(self, 'organizations')
@@ -607,11 +606,11 @@ class OrganizationHarvester(ContextClassHarvester):
         return org_count
 
     def build_entity_chunk(self, start):
-        #orgs = self.client.annocultor_db.organization.distinct('codeUri')[start:start + ContextClassHarvester.CHUNK_SIZE]
-        orgs = self.client.annocultor_db.TermList.find( {'entityType': 'OrganizationImpl'}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
+        #entities = self.client.annocultor_db.organization.distinct('codeUri')[start:start + ContextClassHarvester.CHUNK_SIZE]
+        entities = self.client.annocultor_db.TermList.find( {'entityType': 'OrganizationImpl'}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
         orgs_chunk = {}
-        for org in orgs:
-            org_id = org['codeUri']
+        for entity in entities:
+            org_id = entity['codeUri']
             orgs_chunk[org_id] = self.client.annocultor_db.TermList.find_one({ 'codeUri' : org_id })
         return orgs_chunk
 
