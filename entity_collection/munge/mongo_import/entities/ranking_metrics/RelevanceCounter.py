@@ -112,8 +112,8 @@ class RelevanceCounter:
         wikidata_id = None
         WIKIDATA_PREFFIX = 'http://www.wikidata.entity/entity/'
                 
-        if('owlSameAs' in representation['representation'].keys()):
-            for uri in representation['representation']['owlSameAs']:
+        if('owlSameAs' in representation.keys()):
+            for uri in representation['owlSameAs']:
                 if(uri.startswith(WIKIDATA_PREFFIX)):
                     wikidata_id = str(uri).replace(WIKIDATA_PREFFIX, '')
                     print("has wikidata identifier: " + wikidata_id)
