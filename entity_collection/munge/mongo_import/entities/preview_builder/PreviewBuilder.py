@@ -196,9 +196,16 @@ class PreviewBuilder:
 
     def load_depictions(self):
         image_files = ['agents.wikidata.images.csv', 'entities.merge.images.csv']
+        current_dir=os.getcwd()
+            
         for image_file in image_files:
-            current_dir=os.getcwd()
-            with open(os.path.join(current_dir, 'entities', 'resources', image_file), encoding="utf-8") as imgs:
+            #temporary hack, the folder for csv files needs to be added to .properties file
+            if(str(current_dir).endswith('ranking_metrics')):
+                csv_file = os.path.join(current_dir, '../', 'resources', image_file)
+            else:
+                csv_file = os.path.join(current_dir, 'entities', 'resources', image_file)
+            
+            with open(csv_file, encoding="utf-8") as imgs:
                 for line in imgs.readlines():
                     (agent_id, image_id) = line.split(sep=",", maxsplit=1)
                     agent_id = agent_id.strip()
