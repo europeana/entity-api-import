@@ -195,7 +195,7 @@ class PreviewBuilder:
     # and they are pulled in ad hoc from a static file
 
     def load_depictions(self):
-        image_files = ['agents.wikidata.images.csv', 'entities.merge.images.csv']
+        image_files = ['agents.wikidata.images.csv', 'concepts.merge.images.csv']
         current_dir=os.getcwd()
             
         for image_file in image_files:
