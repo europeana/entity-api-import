@@ -185,7 +185,7 @@ class MetricsImporter:
 		entities = self.mongo.annocultor_db.TermList.find({ "entityType" : self.entity_type})
 		#extract wikidata identifiers
 		for entity in entities:
-			wkdt_identifier = self.harvester.relevance_counter.extract_wikidata_identifier(entity)
+			wkdt_identifier = self.harvester.relevance_counter.extract_wikidata_identifier(entity['representation'])
 			if(wkdt_identifier is not None):
 				self.wkdt_identifiers.append(wkdt_identifier)
 		
