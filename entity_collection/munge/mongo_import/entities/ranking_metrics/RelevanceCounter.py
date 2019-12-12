@@ -83,10 +83,10 @@ class RelevanceCounter:
 
     def get_raw_relevance_metrics(self, uri, representation):
         csr = self.db.cursor()
-        csr.execute("SELECT * FROM hits WHERE id='"+ uri + "'")
+        csr.execute("SELECT id, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank FROM hits WHERE id='"+ uri + "'")
         first_row = csr.fetchone()
         if(first_row is not None):
-            (_, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank) = first_row
+            (_, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank) = first_row
             if(pagerank is None):
                 pagerank = 0
         else:
