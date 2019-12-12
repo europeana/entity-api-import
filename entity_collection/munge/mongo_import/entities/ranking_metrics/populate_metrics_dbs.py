@@ -80,7 +80,7 @@ class MetricsImporter:
 		batch = 0
 		start = 0	
 		while (start < self.entity_count):
-			print(str(start))
+			print("start storing metrics:" + str(start))
 			#create OrgRecords
 			#self.mongo.annocultor_db.TermList.find({ "entityType" : self.entity_type})
 			entities = self.fetch_entity_batch(start)
@@ -140,6 +140,7 @@ class MetricsImporter:
 				# if hit already registered print()
 				print("insert or replace failed for : " + str(metric_records))
 				pass
+		print("stored metrics: " + metric_records.__len__());
 		conn.commit()
 
 	def init_database(self):

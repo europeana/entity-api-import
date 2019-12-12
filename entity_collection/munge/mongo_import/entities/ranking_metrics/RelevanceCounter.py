@@ -164,10 +164,11 @@ class RelevanceCounter:
         qry_labels = ["\"" + label + "\"" for label in all_labels]
         qs = " OR ".join(qry_labels)
         qry = self.config.get_relevance_solr() + "&q=" + qs
-        res = requests.get(qry)
         try:
+            res = requests.get(qry)
             return res.json()['response']['numFound']
         except:
+            print("Term hits computation failed for request: " + qry)
             return 0
 
     def calculate_relevance_score(self, uri, pagerank, eu_enrichment_count, eu_hit_count):
