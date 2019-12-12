@@ -140,7 +140,7 @@ class MetricsImporter:
 				# if hit already registered print()
 				print("insert or replace failed for : " + str(metric_records))
 				pass
-		print("stored metrics: " + len(metric_records);
+		print("stored metrics: ", len(metric_records))
 		conn.commit()
 
 	def init_database(self):
@@ -244,13 +244,13 @@ harvester = ConceptHarvester()
 importer = MetricsImporter(harvester, DB_CONCEPT, TYPE_CONCEPT)
 importer.import_metrics()
 
-#harvester = PlaceHarvester()
-#importer = MetricsImporter(harvester, DB_PLACE, TYPE_PLACE)
-#importer.import_metrics()
+harvester = PlaceHarvester()
+importer = MetricsImporter(harvester, DB_PLACE, TYPE_PLACE)
+importer.import_metrics()
 
-#harvester = AgentHarvester()
-#importer = MetricsImporter(harvester, DB_AGENT, TYPE_AGENT)
-#importer.import_metrics()
+harvester = AgentHarvester()
+importer = MetricsImporter(harvester, DB_AGENT, TYPE_AGENT)
+importer.import_metrics()
 	
 
 
