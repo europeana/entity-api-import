@@ -8,6 +8,7 @@ from entities.ContextClassHarvesters import ContextClassHarvester, ConceptHarves
 from entities.ranking_metrics import RelevanceCounter 
 from urllib.parse import quote
 from _ast import If
+from symbol import for_stmt
 
 # purpose of script is to populate the ranking metrics for Concepts
 # Right now we need URI hits, term hits, and PageRank
@@ -53,6 +54,9 @@ class MetricsImporter:
 		self.harvester = harvester
 		self.wkdt_identifiers = []
 		self.pageranks = {}
+		self.BATCH_SIZE = 300
+		self.entity_count = -1
+		self.metric_records = []
 		
 		
 	def import_metrics(self):
@@ -60,44 +64,66 @@ class MetricsImporter:
 		#ensure database is initialized
 		self.init_database()
 		
+		#get entity count
+		self.entity_count = self.get_entity_count()
+		
 		#load page ranks
 		self.load_wikidata_identifiers()
 		
 		#load page ranks
 		self.load_page_ranks()
+		
+		#store metrics to db
+		self.store_metrics()
+						
+	def store_metrics(self):
+		batch = 0
+		start = 0	
+		while (start < self.entity_count):
+			print(str(start))
+			#create OrgRecords
+			#self.mongo.annocultor_db.TermList.find({ "entityType" : self.entity_type})
+			entities = self.fetch_entity_batch(start)
 			
-		#create OrgRecords
-		entities = self.mongo.annocultor_db.TermList.find({ "entityType" : self.entity_type})
-		i = 0
-		for entity in entities:
-			i += 1
-			print(str(i))
-			#if( i == 10):
-			#	break
+			#build metric records
+			for entity in entities:
+				record = self.fetch_metrics(entity)
+				#add to record list
+				self.metric_records.append(record)
 			
-			entity_id = entity['codeUri']
-			representation =  entity[ContextClassHarvester.REPRESENTATION]
-			#used only for easy record identification
-			label = self.extract_def_label(entity)
+			#store metric records	
+			self.store_metric_records(self.metric_records)
 			
-			# id, label, wikidata_id, uri_hits, term_hits, wpd_hits, pagerank
-			record = MetricsRecord(entity_id, label)
-			record.all_labels = self.extract_all_labels(entity)
+			#initialize next batch
+			batch += 1
+			start = batch * self.BATCH_SIZE
+			#clear records list
+			self.metric_records = []
+	
+	
+	def fetch_metrics(self, entity):
+		#if( i == 10):
+		#	break
+		entity_id = entity['codeUri']
+		representation =  entity[ContextClassHarvester.REPRESENTATION]
+		#used only for easy record identification
+		label = self.extract_def_label(entity)
 			
-			#saves values in the database, but not page rank and labels
-			metrics = self.harvester.relevance_counter.get_raw_relevance_metrics(entity_id, representation)
-			#page rank
-			record.wikidata_id = harvester.relevance_counter.extract_wikidata_identifier(entity)
-			record.uri_hits = metrics[harvester.relevance_counter.METRIC_ENRICHMENT_HITS]
-			record.term_hits = metrics[harvester.relevance_counter.METRIC_TERM_HITS]
-			record.wpd_hits = metrics[harvester.relevance_counter.METRIC_WIKI_HITS]
-			record.pagerank = self.get_page_rank(record.wikidata_id, self.pageranks)
-			#add to record list
-			metric_records.append(record)
+		# id, label, wikidata_id, uri_hits, term_hits, wpd_hits, pagerank
+		record = MetricsRecord(entity_id, label)
+		record.all_labels = self.extract_all_labels(entity)
 			
-		self.store_metrics(metric_records)
-
-	def store_metrics(self, metric_records):
+		#saves values in the database, but not page rank and labels
+		metrics = self.harvester.relevance_counter.get_raw_relevance_metrics(entity_id, representation)
+		#page rank
+		record.wikidata_id = harvester.relevance_counter.extract_wikidata_identifier(entity)
+		record.uri_hits = metrics[harvester.relevance_counter.METRIC_ENRICHMENT_HITS]
+		record.term_hits = metrics[harvester.relevance_counter.METRIC_TERM_HITS]
+		record.wpd_hits = metrics[harvester.relevance_counter.METRIC_WIKI_HITS]
+		record.pagerank = self.get_page_rank(record.wikidata_id, self.pageranks)
+		return record
+		
+	def store_metric_records(self, metric_records):
 		conn = sqlite3.connect(self.database)
 		csr = conn.cursor()
 		for mr in metric_records: #TODO switch to insert or update
@@ -182,12 +208,33 @@ class MetricsImporter:
 		
 	
 	def load_wikidata_identifiers(self):
+		batch = 0
+		start = 0	
+		while (start < self.entity_count):
+			print(str(start))
+			#create OrgRecords
+			#self.mongo.annocultor_db.TermList.find({ "entityType" : self.entity_type})
+			entities = self.fetch_entity_batch(start)
+			
+			#build metric records
+			for entity in entities:
+				wkdt_identifier = self.harvester.relevance_counter.extract_wikidata_identifier(entity['representation'])
+				if(wkdt_identifier is not None):
+					self.wkdt_identifiers.append(wkdt_identifier)
+
+			#initialize next batch
+			batch += 1
+			start = batch * self.BATCH_SIZE
+		
+	def fetch_entity_batch(self, start):
 		entities = self.mongo.annocultor_db.TermList.find({ "entityType" : self.entity_type})
-		#extract wikidata identifiers
-		for entity in entities:
-			wkdt_identifier = self.harvester.relevance_counter.extract_wikidata_identifier(entity['representation'])
-			if(wkdt_identifier is not None):
-				self.wkdt_identifiers.append(wkdt_identifier)
+		#entities.batch_size(batch_size)
+		entities.skip(start);
+		entities.limit(self.BATCH_SIZE);
+		return entities
+		
+	def get_entity_count(self):
+		return self.mongo.annocultor_db.TermList.count({ "entityType" : self.entity_type})
 		
 		
 #run import scripts
@@ -196,13 +243,13 @@ harvester = ConceptHarvester()
 importer = MetricsImporter(harvester, DB_CONCEPT, TYPE_CONCEPT)
 importer.import_metrics()
 
-harvester = PlaceHarvester()
-importer = MetricsImporter(harvester, DB_PLACE, TYPE_PLACE)
-importer.import_metrics()
+#harvester = PlaceHarvester()
+#importer = MetricsImporter(harvester, DB_PLACE, TYPE_PLACE)
+#importer.import_metrics()
 
-harvester = AgentHarvester()
-importer = MetricsImporter(harvester, DB_AGENT, TYPE_AGENT)
-importer.import_metrics()
+#harvester = AgentHarvester()
+#importer = MetricsImporter(harvester, DB_AGENT, TYPE_AGENT)
+#importer.import_metrics()
 	
 
 
