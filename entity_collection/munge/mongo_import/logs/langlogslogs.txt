@@ -10116,3 +10116,28 @@ Invalid language code found on entity http://data.europeana.eu/organization/1482
 Invalid language code found on entity http://data.europeana.eu/organization/1482250000004517590: def
 Invalid language code found on entity http://data.europeana.eu/organization/1482250000004517589: def
 Invalid language code found on entity http://data.europeana.eu/organization/1482250000004517588: def
+Invalid language code found on entity http://data.europeana.eu/agent/base/11241: def
+Invalid language code found on entity http://data.europeana.eu/agent/base/11241: def
+Invalid language code found on entity http://data.europeana.eu/agent/base/11241: def
+Invalid language code found on entity http://data.europeana.eu/agent/base/146741: def
+Invalid language code found on entity http://data.europeana.eu/agent/base/146741: def
+Invalid language code found on entity http://data.europeana.eu/agent/base/146741: def
+Invalid language code found on entity http://data.europeana.eu/agent/base/146741: def
+Invalid language code found on entity http://data.europeana.eu/agent/base/146741: def
+Invalid language code found on entity http://data.europeana.eu/place/base/40360: Empty string
+Invalid language code found on entity http://data.europeana.eu/place/base/40360: def
+Invalid language code found on entity http://data.europeana.eu/place/base/40360: def
+Invalid language code found on entity http://data.europeana.eu/place/base/143914: Empty string
+Invalid language code found on entity http://data.europeana.eu/place/base/143914: def
+Invalid language code found on entity http://data.europeana.eu/place/base/143914: def
+Invalid language code found on entity http://data.europeana.eu/agent/base/178: def
+Invalid language code found on entity http://data.europeana.eu/agent/base/178: def
+Invalid language code found on entity http://data.europeana.eu/agent/base/178: def
+Invalid language code found on entity http://data.europeana.eu/agent/base/178: def
+Invalid language code found on entity http://data.europeana.eu/agent/base/178: def
+Invalid language code found on entity http://data.europeana.eu/agent/base/178: def
+Invalid language code found on entity http://data.europeana.eu/place/base/216254: Empty string
+Invalid language code found on entity http://data.europeana.eu/place/base/216254: def
+Invalid language code found on entity http://data.europeana.eu/agent/base/11241: def
+Invalid language code found on entity http://data.europeana.eu/agent/base/11241: def
+Invalid language code found on entity http://data.europeana.eu/agent/base/11241: def
