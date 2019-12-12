@@ -140,7 +140,7 @@ class MetricsImporter:
 				# if hit already registered print()
 				print("insert or replace failed for : " + str(metric_records))
 				pass
-		print("stored metrics: " + metric_records.__len__());
+		print("stored metrics: " + len(metric_records);
 		conn.commit()
 
 	def init_database(self):
