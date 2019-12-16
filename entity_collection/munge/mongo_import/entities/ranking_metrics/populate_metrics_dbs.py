@@ -243,23 +243,20 @@ class MetricsImporter:
 		
 #run import scripts
 #read page rank once, this is an expensive information
-#harvester = OrganizationHarvester()
-#importer = MetricsImporter(harvester, DB_ORGANIZATION, TYPE_ORGANIZATION)
-#importer.import_metrics()
+harvester = OrganizationHarvester()
+importer = MetricsImporter(harvester, DB_ORGANIZATION, TYPE_ORGANIZATION)
+importer.import_metrics()
 
 
 harvester = ConceptHarvester()
 importer = MetricsImporter(harvester, DB_CONCEPT, TYPE_CONCEPT)
 importer.import_metrics()
 
-#harvester = PlaceHarvester()
-#importer = MetricsImporter(harvester, DB_PLACE, TYPE_PLACE)
-#importer.import_metrics()
+harvester = PlaceHarvester()
+importer = MetricsImporter(harvester, DB_PLACE, TYPE_PLACE)
+importer.import_metrics()
 
-#harvester = AgentHarvester()
-#importer = MetricsImporter(harvester, DB_AGENT, TYPE_AGENT)
-#importer.import_metrics()
-	
-
-
+harvester = AgentHarvester()
+importer = MetricsImporter(harvester, DB_AGENT, TYPE_AGENT)
+importer.import_metrics()
 
