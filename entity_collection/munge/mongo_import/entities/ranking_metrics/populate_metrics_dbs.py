@@ -4,7 +4,7 @@ import sqlite3
 import urllib3
 from pymongo import MongoClient
 from entities import HarvesterConfig
-from entities.ContextClassHarvesters import ContextClassHarvester, ConceptHarvester, AgentHarvester, PlaceHarvester
+from entities.ContextClassHarvesters import ContextClassHarvester, ConceptHarvester, AgentHarvester, PlaceHarvester, OrganizationHarvester
 from entities.ranking_metrics import RelevanceCounter 
 from urllib.parse import quote
 from _ast import If
@@ -18,11 +18,14 @@ from symbol import for_stmt
 # @en labels 
 DB_CONCEPT = "./db/concept.db" 	
 DB_PLACE = "./db/place.db" 	
-DB_AGENT = "./db/agent.db" 	
+DB_AGENT = "./db/agent.db"
+DB_ORGANIZATION = "./db/organization.db" 	
 
 TYPE_CONCEPT = "ConceptImpl" 	
 TYPE_PLACE = "PlaceImpl" 	
-TYPE_AGENT = "AgentImpl" 	
+TYPE_AGENT = "AgentImpl"
+TYPE_ORGANIZATION = "OrganizationImpl"
+ 	
 
 PR_URI_PREFIX = "http://wikidata.dbpedia.entity/resource/"		
 wikidata_endpoint_url = "https://query.wikidata.entity/bigdata/namespace/wdq/sparql?format=json&query="
@@ -156,7 +159,7 @@ class MetricsImporter:
 		#TODO filter to use only labels in European languages (use boolean method param)
 		for lv in term_list['representation']['prefLabel']:
 			[lbls.append(lbl) for lbl in term_list['representation']['prefLabel'][lv]]
-		#pref labels are not mandatory
+		#alt labels are not mandatory
 		if('altLabel' in term_list['representation'].keys()):
 			for lv in term_list['representation']['altLabel']:
 				try:
@@ -240,17 +243,22 @@ class MetricsImporter:
 		
 #run import scripts
 #read page rank once, this is an expensive information
+#harvester = OrganizationHarvester()
+#importer = MetricsImporter(harvester, DB_ORGANIZATION, TYPE_ORGANIZATION)
+#importer.import_metrics()
+
+
 harvester = ConceptHarvester()
 importer = MetricsImporter(harvester, DB_CONCEPT, TYPE_CONCEPT)
 importer.import_metrics()
 
-harvester = PlaceHarvester()
-importer = MetricsImporter(harvester, DB_PLACE, TYPE_PLACE)
-importer.import_metrics()
+#harvester = PlaceHarvester()
+#importer = MetricsImporter(harvester, DB_PLACE, TYPE_PLACE)
+#importer.import_metrics()
 
-harvester = AgentHarvester()
-importer = MetricsImporter(harvester, DB_AGENT, TYPE_AGENT)
-importer.import_metrics()
+#harvester = AgentHarvester()
+#importer = MetricsImporter(harvester, DB_AGENT, TYPE_AGENT)
+#importer.import_metrics()
 	
 
 

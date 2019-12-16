@@ -1,6 +1,7 @@
 import requests
 import os
 import math
+from urllib.parse import quote
 
 class RelevanceCounter:
     """
@@ -161,16 +162,41 @@ class RelevanceCounter:
     def get_label_count(self, representation):
         all_labels = []
         [all_labels.extend(l) for l in representation['prefLabel'].values()]
-        qry_labels = ["\"" + label + "\"" for label in all_labels]
-        qs = " OR ".join(qry_labels)
-        qry = self.config.get_relevance_solr() + "&q=" + qs
+        #qry_labels = ["\"" + label + "\"" for label in all_labels]
+        #TODO limit the number of pref labels and ensure usage fo default label
+        qry_labels = ["\"" + quote(label) + "\"" for label in all_labels]
+        qry = self.build_term_hits_query(qry_labels)
+        
         try:
             res = requests.get(qry)
             return res.json()['response']['numFound']
-        except:
-            print("Term hits computation failed for request: " + qry)
-            return 0
+        #except:
+        #    print("Term hits computation failed for request: " + qry)
+        #    return 0
+        except (ValueError, KeyError):
+            #response parsing or retrieval errors
+            #TODO: fix too long queries issue
+            #print("cannot parse response for query: ")
+            #print(term_hits_query)
+            if(len(qry_labels) > 10):
+                try:
+                    term_hits_query = self.build_term_hits_query(qry_labels[0:10])
+                    th_as_json = requests.get(term_hits_query).json()
+                    term_hits = th_as_json['response']['numFound']
+                except (ValueError, KeyError):
+                    term_hits = 0    
+            else:    
+                print("cannot get term hits with query: " + term_hits_query)
+                term_hits = 0
+        
+        return term_hits    
 
+    #generic method for building term hit query, may be overwritten in subclasses
+    def build_term_hits_query(self, lbls):
+        qs = " OR ".join(lbls)
+        qry = self.config.get_relevance_solr() + "&q=" + qs
+        return qry
+        
     def calculate_relevance_score(self, uri, pagerank, eu_enrichment_count, eu_hit_count):
         if(pagerank is None or pagerank < 1): pagerank = 1
         #pagerank = pagerank + 1 # eliminate values > 1
@@ -246,7 +272,20 @@ class OrganizationRelevanceCounter(RelevanceCounter):
         #TODO add proper implementation of counting items for organizations
         print("return default enrichment count 1 for organization: " + uri)
         return 1
-
+    
+    def build_term_hits_query(self, lbls):
+        solr_term_hit_query = self.config.get_relevance_solr() + "&q=XXXXX"
+        fielded_query = "PROVIDER:\"XXXXX\" OR DATA_PROVIDER:\"XXXXX\" OR provider_aggregation_edm_intermediateProvider: \"XXXXX\""
+        
+        qrs = []
+        for lbl in lbls:
+            fq = fielded_query.replace('XXXXX', lbl)
+            qrs.append(quote(fq))
+        fielded_query = "(" + " OR ".join(qrs) + ")"
+        term_hits_query = solr_term_hit_query.replace('XXXXX', fielded_query)
+        #print(term_hits_query)
+        return term_hits_query
+    
     #def get_label_count(self, representation):
     #    #TODO add proper implementation of counting enrichments with organizations
     #    print("return default value for label count: 1")
