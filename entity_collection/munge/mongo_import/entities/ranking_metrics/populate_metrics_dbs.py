@@ -252,14 +252,11 @@ harvester = ConceptHarvester()
 importer = MetricsImporter(harvester, DB_CONCEPT, TYPE_CONCEPT)
 importer.import_metrics()
 
-#harvester = PlaceHarvester()
+harvester = PlaceHarvester()
 importer = MetricsImporter(harvester, DB_PLACE, TYPE_PLACE)
 importer.import_metrics()
 
-#harvester = AgentHarvester()
+harvester = AgentHarvester()
 importer = MetricsImporter(harvester, DB_AGENT, TYPE_AGENT)
 importer.import_metrics()
-	
-
-
 
