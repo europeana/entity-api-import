@@ -420,7 +420,7 @@ class ContextClassHarvester:
                     field_value = entity_rows[self.REPRESENTATION][characteristic]
                     self.add_field(docroot, field_name, str(field_value))
                 except KeyError as error:
-                    if("'about'" != str(error)):
+                    if("'about'" != str(error) && "'id'" != str(error)):
                         print('Attribute found in source but undefined in schema.' + str(error))
                     
         #add suggester payload
@@ -476,8 +476,8 @@ class ConceptHarvester(ContextClassHarvester):
 
     def __init__(self):
         # TODO check if 'eu.europeana.corelib.solr.entity.ConceptImpl' is correct and needed (see entityType column in the database)
-        #ContextClassHarvester.__init__(self, 'entities', 'eu.europeana.corelib.solr.entity.ConceptImpl')
-        ContextClassHarvester.__init__(self, 'entities')
+        #ContextClassHarvester.__init__(self, 'concepts', 'eu.europeana.corelib.solr.entity.ConceptImpl')
+        ContextClassHarvester.__init__(self, 'concepts')
         sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
         self.relevance_counter = RelevanceCounter.ConceptRelevanceCounter()
 
