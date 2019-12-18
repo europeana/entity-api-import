@@ -573,7 +573,7 @@ class PlaceHarvester(ContextClassHarvester):
         places_chunk = {}
         for place in places:
             place_id = place['codeUri']
-            places_chunk[place] = self.client.annocultor_db.TermList.find_one({ 'codeUri' : place_id })
+            places_chunk[place_id] = self.client.annocultor_db.TermList.find_one({ 'codeUri' : place_id })
         return places_chunk
 
     def build_entity_doc(self, docroot, entity_id, entity_rows):
