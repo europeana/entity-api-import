@@ -562,7 +562,7 @@ class PlaceHarvester(ContextClassHarvester):
 
     def get_entity_count(self):
         #place_list = self.client.annocultor_db.TermList.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/place/).*$' }} )
-        place_count = self.client.annocultor_db.TermList.find( {"entityType": "ConceptImpl"} ).count()
+        place_count = self.client.annocultor_db.TermList.find( {"entityType": "PlaceImpl"} ).count()
         return place_count
 
     def build_entity_chunk(self, start):
