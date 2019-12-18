@@ -420,7 +420,7 @@ class ContextClassHarvester:
                     field_value = entity_rows[self.REPRESENTATION][characteristic]
                     self.add_field(docroot, field_name, str(field_value))
                 except KeyError as error:
-                    if("'about'" != str(error) && "'id'" != str(error)):
+                    if("'about'" != str(error) and "'id'" != str(error)):
                         print('Attribute found in source but undefined in schema.' + str(error))
                     
         #add suggester payload
