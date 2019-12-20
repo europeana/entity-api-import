@@ -137,7 +137,9 @@ class MetricsImporter:
                 #add to record list
                 entity_id = entity['codeUri']
                 wikidata_id = self.harvester.relevance_counter.extract_wikidata_uri(entity)
-                page_rank = self.pageranks[wikidata_id] 
+                page_rank = 0.0
+                if (wikidata_id in self.pageranks.keys()):
+                    page_rank = float(self.pageranks[wikidata_id]) 
                 record = MetricsRecord(entity_id, 'fake label', wikidata_id, -1, -1, -1, page_rank)
                 self.metric_records.append(record)
             
@@ -160,7 +162,7 @@ class MetricsImporter:
             #csr.execute(instatement)
             
             try:
-                csr.execute("UPDATE hits SET wikidata_id='?', pagerank=? WHERE id='?'"  
+                csr.execute("""UPDATE hits SET wikidata_id=?, pagerank=? WHERE id=?""",  
                     (mr.wikidata_id, mr.pagerank, mr.id))
     
             except sqlite3.IntegrityError:
