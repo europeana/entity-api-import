@@ -274,8 +274,8 @@ class ContextClassHarvester:
         else:
             return self.write_dir + "/" + self.name + "/" + self.name + "_" + str(start) + "_" + str(start + ContextClassHarvester.CHUNK_SIZE) +  ".xml"
 
-    def grab_relevance_ratings(self, docroot, entity_id, representation):
-        hitcounts = self.relevance_counter.get_raw_relevance_metrics(entity_id, representation)
+    def grab_relevance_ratings(self, docroot, entity_id, entity):
+        hitcounts = self.relevance_counter.get_raw_relevance_metrics(entity_id, entity)
         eu_enrichments = hitcounts["europeana_enrichment_hits"]
         eu_terms = hitcounts["europeana_string_hits"]
         pagerank = hitcounts["pagerank"]
@@ -325,45 +325,45 @@ class ContextClassHarvester:
         if "modified" in entity_rows:
             self.add_field(docroot, "modified", entity_rows["modified"].isoformat()+"Z")
 
-    def process_representation(self, docroot, entity_id, entity_rows):
+    def process_representation(self, docroot, entity_id, entity):
         #all pref labels
         all_preflabels = []
-        for characteristic in entity_rows[self.REPRESENTATION]:
+        for characteristic in entity[self.REPRESENTATION]:
             if(characteristic == "address"):
-                self.process_address(docroot, entity_id, entity_rows[self.REPRESENTATION]['address']['AddressImpl'])
+                self.process_address(docroot, entity_id, entity[self.REPRESENTATION]['address']['AddressImpl'])
             elif (str(characteristic) not in ContextClassHarvester.FIELD_MAP.keys() and characteristic != 'about' and characteristic != 'id'):
                 # TODO: log this?
                 print("unmapped property: " + str(characteristic))
                 continue
             # TODO: Refactor horrible conditional
             elif(str(characteristic) == "dcIdentifier"):
-                self.add_field_list(docroot, ContextClassHarvester.DC_IDENTIFIER, entity_rows[self.REPRESENTATION]['dcIdentifier'][self.LANG_DEF])
+                self.add_field_list(docroot, ContextClassHarvester.DC_IDENTIFIER, entity[self.REPRESENTATION]['dcIdentifier'][self.LANG_DEF])
             elif(str(characteristic) == "edmOrganizationDomain"):
                 #TODO: create method to add solr field for .en fields
-                self.add_field(docroot, ContextClassHarvester.ORGANIZATION_DOMAIN + "." + self.LANG_EN, entity_rows[self.REPRESENTATION]['edmOrganizationDomain'][self.LANG_EN])
+                self.add_field(docroot, ContextClassHarvester.ORGANIZATION_DOMAIN + "." + self.LANG_EN, entity[self.REPRESENTATION]['edmOrganizationDomain'][self.LANG_EN])
             elif(str(characteristic) == "edmEuropeanaRole"): 
                 #multivalued
-                roles = entity_rows[self.REPRESENTATION]['edmEuropeanaRole'][self.LANG_EN]
+                roles = entity[self.REPRESENTATION]['edmEuropeanaRole'][self.LANG_EN]
                 self.add_field_list(docroot, ContextClassHarvester.EUROPEANA_ROLE + "." + self.LANG_EN, roles)
             elif(str(characteristic) == "edmGeographicLevel"):
-                self.add_field(docroot, ContextClassHarvester.GEOGRAPHIC_LEVEL + "." + self.LANG_EN, entity_rows[self.REPRESENTATION]['edmGeographicLevel'][self.LANG_EN])
+                self.add_field(docroot, ContextClassHarvester.GEOGRAPHIC_LEVEL + "." + self.LANG_EN, entity[self.REPRESENTATION]['edmGeographicLevel'][self.LANG_EN])
             elif(str(characteristic) == "edmCountry"):
-                self.add_field(docroot, ContextClassHarvester.COUNTRY, entity_rows[self.REPRESENTATION]['edmCountry'][self.LANG_EN])
+                self.add_field(docroot, ContextClassHarvester.COUNTRY, entity[self.REPRESENTATION]['edmCountry'][self.LANG_EN])
             #not supported anymore 
             #elif(str(characteristic) == "edmOrganizationSector"):
-            #    self.add_field(docroot, "edm_organizationSector.en", entity_rows[self.REPRESENTATION]['edmOrganizationSector'][self.LANG_EN])
+            #    self.add_field(docroot, "edm_organizationSector.en", entity[self.REPRESENTATION]['edmOrganizationSector'][self.LANG_EN])
             #elif(str(characteristic) == "edmOrganizationScope"):
-            #    self.add_field(docroot, "edm_organizationScope.en", entity_rows[self.REPRESENTATION]['edmOrganizationScope'][self.LANG_EN])            
+            #    self.add_field(docroot, "edm_organizationScope.en", entity[self.REPRESENTATION]['edmOrganizationScope'][self.LANG_EN])            
             # if the entry is a dictionary (language map), then the keys should be language codes
-            elif(type(entity_rows[self.REPRESENTATION][characteristic]) is dict):
+            elif(type(entity[self.REPRESENTATION][characteristic]) is dict):
                 #for each entry in the language map
-                for lang in entity_rows[self.REPRESENTATION][characteristic]:
+                for lang in entity[self.REPRESENTATION][characteristic]:
                     pref_label_count = 0
                     #avoid duplicates when adding values from prefLabel
                     prev_alts = []
                     if(ContextClassHarvester.LANG_VALIDATOR.validate_lang_code(entity_id, lang)):
                         field_name = ContextClassHarvester.FIELD_MAP[characteristic][self.LABEL]
-                        field_values = entity_rows[self.REPRESENTATION][characteristic][lang]
+                        field_values = entity[self.REPRESENTATION][characteristic][lang]
                         #property is language map of strings
                         if(type(field_values) == str):
                             unq_name = lang if lang != self.LANG_DEF else ''
@@ -409,22 +409,22 @@ class ContextClassHarvester:
                                 #add field to solr doc
                                 self.add_field(docroot, q_field_name, field_value)                                                          
             #property is list
-            elif(type(entity_rows[self.REPRESENTATION][characteristic]) is list):
+            elif(type(entity[self.REPRESENTATION][characteristic]) is list):
                 field_name = ContextClassHarvester.FIELD_MAP[characteristic][self.LABEL]
-                for entry in entity_rows[self.REPRESENTATION][characteristic]:
+                for entry in entity[self.REPRESENTATION][characteristic]:
                     self.add_field(docroot, field_name, entry)
             # property is a single value
             else: 
                 try:
                     field_name = ContextClassHarvester.FIELD_MAP[characteristic][self.LABEL]
-                    field_value = entity_rows[self.REPRESENTATION][characteristic]
+                    field_value = entity[self.REPRESENTATION][characteristic]
                     self.add_field(docroot, field_name, str(field_value))
                 except KeyError as error:
                     if("'about'" != str(error) and "'id'" != str(error)):
                         print('Attribute found in source but undefined in schema.' + str(error))
                     
         #add suggester payload
-        payload = self.build_payload(entity_id, entity_rows)
+        payload = self.build_payload(entity_id, entity)
         self.add_field(docroot, 'payload', json.dumps(payload))
         #add suggester field
         all_preflabels = self.shingle_preflabels(all_preflabels)
@@ -433,7 +433,7 @@ class ContextClassHarvester:
         depiction = self.preview_builder.get_depiction(entity_id)
         if(depiction):
             self.add_field(docroot, 'foaf_depiction', depiction)
-        self.grab_relevance_ratings(docroot, entity_id, entity_rows[self.REPRESENTATION])
+        self.grab_relevance_ratings(docroot, entity_id, entity)
 
     def shingle_preflabels(self, preflabels):
         shingled_labels = []

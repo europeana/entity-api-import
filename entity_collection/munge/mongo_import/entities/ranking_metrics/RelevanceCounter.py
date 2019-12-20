@@ -30,7 +30,9 @@ class RelevanceCounter:
     PLACE = 'place'
     CONCEPT = 'concept'
     ORGANIZATION = 'organization'
-    
+    WIKIDATA_PREFFIX = 'http://www.wikidata.org/entity/'
+    WIKIDATA_DBPEDIA_PREFIX = 'http://wikidata.dbpedia.org/resource/'
+        
     METRIC_MAX_VALS = {
         METRIC_PAGERANK : {
             AGENT : 1204,
@@ -82,7 +84,7 @@ class RelevanceCounter:
         normatus = re.sub(" ", "_", normatus)
         return normatus
 
-    def get_raw_relevance_metrics(self, uri, representation):
+    def get_raw_relevance_metrics(self, uri, entity):
         csr = self.db.cursor()
         csr.execute("SELECT id, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank FROM hits WHERE id='"+ uri + "'")
         first_row = csr.fetchone()
@@ -94,8 +96,8 @@ class RelevanceCounter:
             # wikipedia_hits is not used anymore
             wikipedia_hits = -1 
             europeana_enrichment_hits = self.get_enrichment_count(uri)
-            europeana_string_hits = self.get_label_count(representation)
-            wikidata_id = self.extract_wikidata_identifier(representation)
+            europeana_string_hits = self.get_label_count(entity['representation'])
+            wikidata_id = self.extract_wikidata_uri(entity)
             #TODO import page rank to DB file
             #TODO use MetricRecord object
             pagerank = 0.0
@@ -109,17 +111,24 @@ class RelevanceCounter:
         }
         return metrics
 
-    def extract_wikidata_identifier(self, representation):
-        wikidata_id = None
-        WIKIDATA_PREFFIX = 'http://www.wikidata.entity/entity/'
+    def extract_wikidata_uri(self, entity):
+        wikidata_uri = None
                 
-        if('owlSameAs' in representation.keys()):
-            for uri in representation['owlSameAs']:
-                if(uri.startswith(WIKIDATA_PREFFIX)):
-                    wikidata_id = str(uri).replace(WIKIDATA_PREFFIX, '')
-                    print("has wikidata identifier: " + wikidata_id)
+        if('owlSameAs' in entity.keys()):
+            for uri in entity['owlSameAs']:
+                if (uri.startswith(self.WIKIDATA_PREFFIX)):
+                    wikidata_uri = uri
+                    #print("has wikidata uri: " + str(wikidata_uri))
                     break
-        return wikidata_id
+                elif (uri.startswith(self.WIKIDATA_DBPEDIA_PREFIX)):
+                    wikidata_uri= str(wikidata_uri).replace(self.WIKIDATA_DBPEDIA_PREFIX, self.WIKIDATA_PREFFIX)
+                    #print("has wikidata uri: " + str(wikidata_uri))
+        return wikidata_uri
+    
+    def extract_wikidata_identifier(self, wikidata_uri):
+        wikidata_identifier = str(wikidata_uri).replace(self.WIKIDATA_PREFFIX, '')
+        #print("has wikidata identifier: " + wikidata_identifier)   
+        return wikidata_identifier
     
     def get_max_metrics(self):
         csr = self.db.cursor()
