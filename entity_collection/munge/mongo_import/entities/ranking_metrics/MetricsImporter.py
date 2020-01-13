@@ -2,6 +2,7 @@ import requests
 import json
 import sqlite3
 import urllib3
+import os
 from pymongo import MongoClient
 from entities import HarvesterConfig
 from entities.ContextClassHarvesters import ContextClassHarvester, ConceptHarvester, AgentHarvester, PlaceHarvester, OrganizationHarvester
@@ -177,7 +178,7 @@ class MetricsImporter:
         #if( i == 10):
         #    break
         entity_id = entity['codeUri']
-        representation =  entity[ContextClassHarvester.REPRESENTATION]
+        #representation =  entity[ContextClassHarvester.REPRESENTATION]
         #used only for easy record identification
         label = self.extract_def_label(entity)
             
@@ -198,7 +199,7 @@ class MetricsImporter:
         return record
         
     def store_metric_records(self, metric_records):
-        conn = sqlite3.connect(self.database)
+        conn = sqlite3.connect(self.dbpath)
         csr = conn.cursor()
         for mr in metric_records: #TODO switch to insert or update
             #vals = [str("\"" + metric_record.id + "\""), str(metric_record.wpd_hits), str(metric_record.uri_hits), str(metric_record.term_hits), str(metric_record.pagerank)]
@@ -218,7 +219,9 @@ class MetricsImporter:
         conn.commit()
 
     def init_database(self):
-        conn = sqlite3.connect(self.database)
+        #conn = sqlite3.connect(self.database)
+        self.dbpath = os.path.join(os.path.dirname(__file__), self.database)
+        conn = sqlite3.connect(self.dbpath)
         csr = conn.cursor()
         DB_CREATE_STATEMENT = "CREATE TABLE IF NOT EXISTS hits (id VARCHAR(200) PRIMARY KEY, wikidata_id VARCHAR(400), wikipedia_hits INTEGER, europeana_enrichment_hits INTEGER, europeana_string_hits INTEGER, pagerank DOUBLE)"
         csr.execute(DB_CREATE_STATEMENT)
@@ -273,7 +276,8 @@ class MetricsImporter:
         if(len(self.wkdt_uris) == 0):
             return
         # process pagerank file, grab relevant items
-        with open(self.WKDT_PAGE_RANK) as ult:
+        self.wikidata_pr_file =  os.path.join(os.path.dirname(__file__), self.WKDT_PAGE_RANK)
+        with open(self.wikidata_pr_file) as ult:
             for line in ult.readlines():
                 (wkd_dbp_uri, pr) = line.split("\t")
                 
