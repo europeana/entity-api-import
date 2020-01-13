@@ -1,7 +1,7 @@
 import requests
 import os
 import math
-from urllib.parse import quote
+from urllib.parse import quote_plus
 
 class RelevanceCounter:
     """
@@ -33,24 +33,25 @@ class RelevanceCounter:
     WIKIDATA_PREFFIX = 'http://www.wikidata.org/entity/'
     WIKIDATA_DBPEDIA_PREFIX = 'http://wikidata.dbpedia.org/resource/'
         
+    wikidata_europeana_mapping = None
     METRIC_MAX_VALS = {
         METRIC_PAGERANK : {
             AGENT : 1204,
             PLACE : 24772,
             CONCEPT : 4055,
-            ORGANIZATION : 115
+            ORGANIZATION : 244
             },
         METRIC_ENRICHMENT_HITS : {
-            AGENT : 40953,
-            PLACE : 3634922,
-            CONCEPT : 3305389,
+            AGENT : 31734,
+            PLACE : 3065416,
+            CONCEPT : 1448506,
             ORGANIZATION : 1
             },
         METRIC_TERM_HITS : {
-            AGENT : 2399975,
-            PLACE : 13850981,
-            CONCEPT : 6757400,
-            ORGANIZATION : 6952064
+            AGENT : 2297502,
+            PLACE : 24576199,
+            CONCEPT : 8106790,
+            ORGANIZATION : 8977503
             }
         }
     
@@ -63,13 +64,10 @@ class RelevanceCounter:
     RANGE_EXTENSION_FACTOR = 10000
      
     def __init__(self, name):
-        import sqlite3 as slt
         import HarvesterConfig
         self.config = HarvesterConfig.HarvesterConfig()
-        
+        self.db = None
         self.name = name
-        self.dbpath = os.path.join(os.path.dirname(__file__), 'db', name + ".db")
-        self.db = slt.connect(self.dbpath)
         self.penalized_entities = []
         with open(os.path.join(os.path.dirname(__file__), 'resources', 'worst_bets.txt')) as wbets:
             for line in wbets.readlines():
@@ -84,7 +82,14 @@ class RelevanceCounter:
         normatus = re.sub(" ", "_", normatus)
         return normatus
 
+    def db_connect(self):
+        import sqlite3 as slt
+        if(self.db == None):
+            self.dbpath = os.path.join(os.path.dirname(__file__), 'db', self.name + ".db")
+            self.db = slt.connect(self.dbpath)
+        
     def get_raw_relevance_metrics(self, uri, entity):
+        self.db_connect()
         csr = self.db.cursor()
         csr.execute("SELECT id, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank FROM hits WHERE id='"+ uri + "'")
         first_row = csr.fetchone()
@@ -113,16 +118,20 @@ class RelevanceCounter:
 
     def extract_wikidata_uri(self, entity):
         wikidata_uri = None
-                
-        if('owlSameAs' in entity.keys()):
-            for uri in entity['owlSameAs']:
-                if (uri.startswith(self.WIKIDATA_PREFFIX)):
-                    wikidata_uri = uri
-                    #print("has wikidata uri: " + str(wikidata_uri))
-                    break
-                elif (uri.startswith(self.WIKIDATA_DBPEDIA_PREFIX)):
-                    wikidata_uri= str(wikidata_uri).replace(self.WIKIDATA_DBPEDIA_PREFIX, self.WIKIDATA_PREFFIX)
-                    #print("has wikidata uri: " + str(wikidata_uri))
+        #places do not have the wikidata id in same as
+        if self.PLACE == self.name:
+            wikidata_uri = self.get_wikidata_uri_for_place(entity)        
+        else: 
+            representation = entity['representation']
+            if('owlSameAs' in representation.keys()):
+                for uri in representation['owlSameAs']:
+                    if (uri.startswith(self.WIKIDATA_PREFFIX)):
+                        wikidata_uri = uri
+                        #print("has wikidata uri: " + str(wikidata_uri))
+                        break
+                    elif (uri.startswith(self.WIKIDATA_DBPEDIA_PREFIX)):
+                        wikidata_uri= str(wikidata_uri).replace(self.WIKIDATA_DBPEDIA_PREFIX, self.WIKIDATA_PREFFIX)
+                        #print("has wikidata uri: " + str(wikidata_uri))
         return wikidata_uri
     
     def extract_wikidata_identifier(self, wikidata_uri):
@@ -130,7 +139,30 @@ class RelevanceCounter:
         #print("has wikidata identifier: " + wikidata_identifier)   
         return wikidata_identifier
     
+    def load_wikidata_identifiers_for_places(self):
+        if (self.wikidata_europeana_mapping is not None):
+            return
+        self.wikidata_europeana_mapping = {}
+        with open(os.path.join(os.path.dirname(__file__), 'resources', 'places_data_wikidata_all.csv'), encoding="UTF-8") as wikidata_mapping:
+            for line in wikidata_mapping.readlines():
+                line = str(line).split(';', 3)
+                europeana_id = line[0]
+                wikidata_id = line[1]
+                self.wikidata_europeana_mapping[europeana_id] = wikidata_id 
+    
+    def get_wikidata_uri_for_place(self, entity):
+        self.load_wikidata_identifiers_for_places()
+        wikidata_id = None
+        if (self.wikidata_europeana_mapping is not None):
+            europeana_id = entity['codeUri']
+            if (europeana_id in self.wikidata_europeana_mapping.keys()):
+                wikidata_id = self.wikidata_europeana_mapping[europeana_id]
+        
+        return wikidata_id
+    
+    
     def get_max_metrics(self):
+        self.db_connect()
         csr = self.db.cursor()
         csr.execute("SELECT MAX(europeana_enrichment_hits) as meeh, MAX(europeana_string_hits) as mesh, MAX(pagerank) as mpr, MAX(wikipedia_hits) mwph FROM hits")
         first_row = csr.fetchone()
@@ -146,6 +178,7 @@ class RelevanceCounter:
         return metrics
 
     def get_max_pagerank(self):
+        self.db_connect()
         csr = self.db.cursor()
         csr.execute("SELECT id, pagerank FROM hits where pagerank = (select max(pagerank) from hits)")
         first_row = csr.fetchone()
@@ -173,11 +206,11 @@ class RelevanceCounter:
         [all_labels.extend(l) for l in representation['prefLabel'].values()]
         #qry_labels = ["\"" + label + "\"" for label in all_labels]
         #TODO limit the number of pref labels and ensure usage fo default label
-        qry_labels = ["\"" + quote(label) + "\"" for label in all_labels]
-        qry = self.build_term_hits_query(qry_labels)
+        qry_labels = ["\"" + label + "\"" for label in all_labels]
+        term_hits_query = self.build_term_hits_query(qry_labels)
         
         try:
-            res = requests.get(qry)
+            res = requests.get(term_hits_query)
             return res.json()['response']['numFound']
         #except:
         #    print("Term hits computation failed for request: " + qry)
@@ -203,7 +236,7 @@ class RelevanceCounter:
     #generic method for building term hit query, may be overwritten in subclasses
     def build_term_hits_query(self, lbls):
         qs = " OR ".join(lbls)
-        qry = self.config.get_relevance_solr() + "&q=" + qs
+        qry = self.config.get_relevance_solr() + "&q=" + quote_plus(qs)
         return qry
         
     def calculate_relevance_score(self, uri, pagerank, eu_enrichment_count, eu_hit_count):
@@ -284,13 +317,15 @@ class OrganizationRelevanceCounter(RelevanceCounter):
     
     def build_term_hits_query(self, lbls):
         solr_term_hit_query = self.config.get_relevance_solr() + "&q=XXXXX"
-        fielded_query = "PROVIDER:\"XXXXX\" OR DATA_PROVIDER:\"XXXXX\" OR provider_aggregation_edm_intermediateProvider: \"XXXXX\""
+        #labels are already quoted
+        fielded_query = "PROVIDER:XXXXX OR DATA_PROVIDER:XXXXX OR provider_aggregation_edm_intermediateProvider: XXXXX"
         
         qrs = []
         for lbl in lbls:
             fq = fielded_query.replace('XXXXX', lbl)
-            qrs.append(quote(fq))
+            qrs.append(fq)
         fielded_query = "(" + " OR ".join(qrs) + ")"
+        fielded_query = quote_plus(fielded_query)
         term_hits_query = solr_term_hit_query.replace('XXXXX', fielded_query)
         #print(term_hits_query)
         return term_hits_query
