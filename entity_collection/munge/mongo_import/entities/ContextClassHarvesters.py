@@ -475,8 +475,6 @@ class ContextClassHarvester:
 class ConceptHarvester(ContextClassHarvester):
 
     def __init__(self):
-        # TODO check if 'eu.europeana.corelib.solr.entity.ConceptImpl' is correct and needed (see entityType column in the database)
-        #ContextClassHarvester.__init__(self, 'concepts', 'eu.europeana.corelib.solr.entity.ConceptImpl')
         ContextClassHarvester.__init__(self, 'concepts')
         sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
         self.relevance_counter = RelevanceCounter.ConceptRelevanceCounter()
@@ -496,6 +494,7 @@ class ConceptHarvester(ContextClassHarvester):
         return concepts_chunk
 
     def build_entity_doc(self, docroot, entity_id, entity_rows):
+        #why path change? probably for metrics but that should not happen here
         sys.path.append('ranking_metrics')
         from xml.etree import ElementTree as ET
         doc = ET.SubElement(docroot, 'doc')
@@ -588,10 +587,8 @@ class PlaceHarvester(ContextClassHarvester):
 class OrganizationHarvester(ContextClassHarvester):
 
     def __init__(self):
-        sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
-        #TODO: check if 'eu.europeana.corelib.solr.entity.OrganizationImpl' still needed/used
-        #ContextClassHarvester.__init__(self, 'organizations', 'eu.europeana.corelib.solr.entity.OrganizationImpl')
         ContextClassHarvester.__init__(self, 'organizations')
+        sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
         self.relevance_counter = RelevanceCounter.OrganizationRelevanceCounter()
 
     def get_mongo_host (self):
