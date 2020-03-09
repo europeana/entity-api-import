@@ -10,10 +10,6 @@ from urllib.parse import quote
 
 # first, we need to grab all Organization identifiers from Mongo, as well as their
 # @en labels 
-DB_ORGANIZATION = "./db/organization.db" 	
-PR_URI_PREFIX = "http://wikidata.dbpedia.entity/resource/"		
-wikidata_endpoint_url = "https://query.wikidata.entity/bigdata/namespace/wdq/sparql?format=json&query="
-wikidata_query = "SELECT ?item WHERE { ?item rdfs:label|skos:altLabel 'XXXXX'@en. } limit 1"
 WKDT_PAGE_RANK = './resources/wd_pr_ultimate.tsv' 
 
 
