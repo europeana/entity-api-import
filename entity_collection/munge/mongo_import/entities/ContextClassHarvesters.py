@@ -7,6 +7,7 @@ from ranking_metrics import RelevanceCounter
 # TODO: Refactor to shrink this method
 import json
 from _struct import error
+import DepictionManager
         
 class LanguageValidator:
 
@@ -208,6 +209,7 @@ class ContextClassHarvester:
         #TODO create working dir here, including folders for individual entities and organization type
         entity_type = name[:-1]
         self.preview_builder = PreviewBuilder.PreviewBuilder(self.client, entity_type)
+        self.depiction_manager = DepictionManager.DepictionManager(self.config)
         
     def get_mongo_host (self):
         #return default mongo host, the subclasses may use the type based config (e.g. see organizations)
@@ -292,6 +294,13 @@ class ContextClassHarvester:
         self.add_suggest_filters(docroot, eu_enrichments)
         return True
 
+    def grab_isshownby(self, docroot, entity_id):
+        web_resource = self.depiction_manager.get_depiction(entity_id)
+        if(web_resource is not None):
+            self.add_field(docroot, 'isShownBy', web_resource.media_url)
+            self.add_field(docroot, 'isShownBy.source', web_resource.europeana_item_id)
+            self.add_field(docroot, 'isShownBy.thumbnail', web_resource.thumbnail_url)   
+    
     def process_address(self, docroot, entity_id, address):
         #TODO check if the full address is needed
         #address_components = []
@@ -433,6 +442,8 @@ class ContextClassHarvester:
         depiction = self.preview_builder.get_depiction(entity_id)
         if(depiction):
             self.add_field(docroot, 'foaf_depiction', depiction)
+        
+        self.grab_isshownby(docroot, entity_id)
         self.grab_relevance_ratings(docroot, entity_id, entity)
 
     def shingle_preflabels(self, preflabels):
@@ -471,6 +482,7 @@ class ContextClassHarvester:
     def add_acronym_to_suggest(self, value, suggester_values):
         if(self.suggest_by_acronym() and (value not in suggester_values)):
             suggester_values.append(value)
+    
     
 class ConceptHarvester(ContextClassHarvester):
 
@@ -583,6 +595,10 @@ class PlaceHarvester(ContextClassHarvester):
         self.add_field(doc, 'internal_type', 'Place')
         self.process_created_modified_timestamps(doc, entity_rows)
         self.process_representation(doc, entity_id, entity_rows)
+    
+    def grab_isshownby(self, docroot, entity_id):
+        #isShownBy not supported for places
+        return
 
 class OrganizationHarvester(ContextClassHarvester):
 
@@ -623,7 +639,11 @@ class OrganizationHarvester(ContextClassHarvester):
         self.process_created_modified_timestamps(doc, entity_rows)
         self.process_representation(doc, entity_id, entity_rows)
 
-
+    def grab_isshownby(self, docroot, entity_id):
+        #isShownBy not supported for organizations
+        return 
+    
+        
 class IndividualEntityBuilder:
     
     OUTDIR = os.path.join(os.path.dirname(__file__), '..', 'tests', 'testfiles', 'dynamic')

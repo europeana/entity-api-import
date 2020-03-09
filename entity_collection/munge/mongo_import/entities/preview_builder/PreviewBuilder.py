@@ -11,11 +11,11 @@ class PreviewBuilder:
         from pymongo import MongoClient
         # note fixed import path
         from entities.ContextClassHarvesters import ContextClassHarvester
-        import sys, os
-        import yaml
         self.mongoclient = mongo_client
         self.depictions = {}
-        must_load_depictions = (entity_type == 'agent') or (entity_type == 'concept') 
+        # temporarily disable until depictions list will be created
+        must_load_depictions = False 
+        #must_load_depictions = (entity_type == 'agent') or (entity_type == 'concept') 
         if(must_load_depictions):
             self.load_depictions()
         
@@ -54,6 +54,11 @@ class PreviewBuilder:
         return all_langs
 
     def build_depiction(self, entity_id, entity_rows):
+        #temporarily disabled
+        ignore_depiction = True
+        if(ignore_depiction):
+            return None 
+        
         #if available in database
         if('foafDepiction' in entity_rows.keys()):
             return entity_rows['foafDepiction'];
