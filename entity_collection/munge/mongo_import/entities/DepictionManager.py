@@ -16,6 +16,7 @@ class DepictionManager:
 			for line in resources_file.readlines():
 				(entity_id, item_id, media_url, thumbnail_url) = line.split(sep=",", maxsplit=3)
 				thumbnail_url = unquote(thumbnail_url)
+				thumbnail_url = thumbnail_url.rstrip()
 				self.depictions[entity_id] = WebResource(entity_id, item_id, media_url, thumbnail_url)
 
 	def get_depiction(self, entity_id):
