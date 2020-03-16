@@ -32,7 +32,8 @@ class HarvesterTest(unittest.TestCase):
             "http://data.europeana.eu/organization/1482250000004505021", #organization max page rank: Internet Archive
             "http://data.europeana.eu/organization/1482250000004503580",
             "http://data.europeana.eu/concept/base/1326",#with isShownBy, Minimal-Techno
-            "http://data.europeana.eu/concept/base/1337"#with isShownBy, Pastorale
+            "http://data.europeana.eu/concept/base/1337",#with isShownBy, Pastorale
+            "http://data.europeana.eu/agent/base/100013"
 
         ]
         for test_entity in test_entities:
@@ -51,7 +52,9 @@ class HarvesterTest(unittest.TestCase):
         #Centraal Museum 
         #entity_id = "http://data.europeana.eu/organization/1482250000004500796"
         #Birger Sjöberg
-        entity_id = "http://data.europeana.eu/agent/base/54407"
+        #entity_id = "http://data.europeana.eu/agent/base/54407"
+        # J.R. (musician)
+        entity_id = "http://data.europeana.eu/agent/base/100013"
         
         #government of catalunia
         #entity_id = "http://data.europeana.eu/organization/1482250000004503580"
