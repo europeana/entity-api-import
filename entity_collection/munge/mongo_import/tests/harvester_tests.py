@@ -33,7 +33,8 @@ class HarvesterTest(unittest.TestCase):
             "http://data.europeana.eu/organization/1482250000004503580",
             "http://data.europeana.eu/concept/base/1326",#with isShownBy, Minimal-Techno
             "http://data.europeana.eu/concept/base/1337",#with isShownBy, Pastorale
-            "http://data.europeana.eu/agent/base/100013"
+            "http://data.europeana.eu/agent/base/100013",#J.R. (music)
+            "http://data.europeana.eu/place/base/41948"#paris
 
         ]
         for test_entity in test_entities:

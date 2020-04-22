@@ -24,6 +24,10 @@ class PreviewBuilder:
         preview_fields['id'] = entity_id
         preview_fields['type'] = entity_type
         preview_fields['prefLabel'] = self.build_pref_label(entity_rows)
+        altLabel = self.build_alt_label(entity_rows)
+        if(altLabel is not None):
+            preview_fields['altLabel'] = altLabel
+        
         preview_fields['hiddenLabel'] = self.build_max_recall(entity_type, entity_rows)
         #depiction
         depiction = self.build_depiction(entity_id, entity_rows)
@@ -53,6 +57,25 @@ class PreviewBuilder:
             all_langs[k] = entity_rows['prefLabel'][k][0]
         return all_langs
 
+    def build_alt_label(self, entity_rows):
+        all_langs = {}
+        if('altLabel' in entity_rows.keys()):
+            for k in entity_rows['altLabel']:
+                all_langs[k] = entity_rows['altLabel'][k]
+        else:
+            return None        
+        return all_langs
+    
+    #TODO refactor and remove dupplication in labe methods 
+    def build_acronym(self, entity_rows):
+        all_langs = {}
+        if('edmAcronym' in entity_rows.keys()):
+            for k in entity_rows['edmAcronym']:
+                all_langs[k] = entity_rows['edmAcronym'][k]
+        else:
+            return None        
+        return all_langs
+
     def build_depiction(self, entity_id, entity_rows):
         #temporarily disabled
         ignore_depiction = True
@@ -68,14 +91,6 @@ class PreviewBuilder:
         else:
             return None
 
-    def build_acronym(self, entity_rows):
-        all_langs = {}
-        if('edmAcronym' in entity_rows.keys()):
-            for k in entity_rows['edmAcronym']:
-                all_langs[k] = entity_rows['edmAcronym'][k]
-        else:
-            return None        
-        return all_langs
 
     def get_org_field_en(self, entity_rows, entity_key):
         if(entity_key in entity_rows.keys()):
