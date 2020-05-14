@@ -8,6 +8,7 @@ from ranking_metrics import RelevanceCounter
 import json
 from _struct import error
 import DepictionManager
+from MetricsImporter import MetricsImporter
         
 class LanguageValidator:
 
@@ -224,13 +225,13 @@ class ContextClassHarvester:
         #numeric id is the last part of the URL 
         return parts[len(parts) - 1]
     
-    def build_solr_doc(self, entities, start, one_entity = False):
+    def build_solr_doc(self, entities, start, one_entity = False, importer=None):
         from xml.etree import ElementTree as ET
 
         docroot = ET.Element('add')
         for entity_id, values  in entities.items():
             print("processing entity:" + entity_id)
-            self.build_entity_doc(docroot, entity_id, values)
+            self.build_entity_doc(docroot, entity_id, values, importer)
         self.client.close()
         return self.write_to_file(docroot, start, one_entity)
         
@@ -276,11 +277,14 @@ class ContextClassHarvester:
         else:
             return self.write_dir + "/" + self.name + "/" + self.name + "_" + str(start) + "_" + str(start + ContextClassHarvester.CHUNK_SIZE) +  ".xml"
 
-    def grab_relevance_ratings(self, docroot, entity_id, entity):
-        hitcounts = self.relevance_counter.get_raw_relevance_metrics(entity_id, entity)
-        eu_enrichments = hitcounts["europeana_enrichment_hits"]
-        eu_terms = hitcounts["europeana_string_hits"]
-        pagerank = hitcounts["pagerank"]
+    def grab_relevance_ratings(self, docroot, entity_id, entity, importer):
+        hitcounts = self.relevance_counter.get_raw_relevance_metrics(entity_id, entity, importer)
+        #eu_enrichments = hitcounts["europeana_enrichment_hits"]
+        #eu_terms = hitcounts["europeana_string_hits"]
+        #pagerank = hitcounts["pagerank"]
+        eu_enrichments = hitcounts.uri_hits
+        eu_terms = hitcounts.wpd_hits
+        pagerank = hitcounts.pagerank
         if(self.ranking_model == self.config.HARVESTER_RELEVANCE_RANKING_MODEL_DEFAULT):
             ds = self.relevance_counter.calculate_relevance_score(entity_id, pagerank, eu_enrichments, eu_terms)
         elif(self.ranking_model == self.config.HARVESTER_RELEVANCE_RANKING_MODEL_NORMALIZED):
@@ -334,7 +338,7 @@ class ContextClassHarvester:
         if "modified" in entity_rows:
             self.add_field(docroot, "modified", entity_rows["modified"].isoformat()+"Z")
 
-    def process_representation(self, docroot, entity_id, entity):
+    def process_representation(self, docroot, entity_id, entity, importer):
         #all pref labels
         all_preflabels = []
         for characteristic in entity[self.REPRESENTATION]:
@@ -444,7 +448,7 @@ class ContextClassHarvester:
             self.add_field(docroot, 'foaf_depiction', depiction)
         
         self.grab_isshownby(docroot, entity_id)
-        self.grab_relevance_ratings(docroot, entity_id, entity)
+        self.grab_relevance_ratings(docroot, entity_id, entity, importer)
 
     def shingle_preflabels(self, preflabels):
         shingled_labels = []
@@ -542,7 +546,7 @@ class AgentHarvester(ContextClassHarvester):
             agents_chunk[agent_id] = self.client.annocultor_db.TermList.find_one({ 'codeUri' : agent_id })
         return agents_chunk
 
-    def build_entity_doc(self, docroot, entity_id, entity_rows):
+    def build_entity_doc(self, docroot, entity_id, entity_rows, importer):
         if(entity_rows is None):
             self.log_missing_entry(entity_id)
             return
@@ -552,7 +556,7 @@ class AgentHarvester(ContextClassHarvester):
         self.add_field(doc, 'id', entity_id)
         self.add_field(doc, 'internal_type', 'Agent')
         self.process_created_modified_timestamps(doc, entity_rows)
-        self.process_representation(doc, entity_id, entity_rows)
+        self.process_representation(doc, entity_id, entity_rows, importer)
 
     def log_missing_entry(self, entity_id):
         msg = "Entity found in Agents but not TermList collection: " + entity_id
@@ -650,15 +654,18 @@ class IndividualEntityBuilder:
 
     def build_individual_entity(self, entity_id):
         from pymongo import MongoClient
-        import shutil
         if(entity_id.find("/place/") > 0):
             harvester = PlaceHarvester()
+            importer = MetricsImporter(harvester, MetricsImporter.DB_PLACE, MetricsImporter.TYPE_PLACE)
         elif(entity_id.find("/agent/") > 0):
             harvester = AgentHarvester()
+            importer = MetricsImporter(harvester, MetricsImporter.DB_AGENT, MetricsImporter.TYPE_AGENT)
         elif(entity_id.find("/organization/") > 0):
             harvester = OrganizationHarvester()
+            importer = MetricsImporter(harvester, MetricsImporter.DB_ORGANIZATION, MetricsImporter.TYPE_ORGANIZATION)
         else:
             harvester = ConceptHarvester()
+            importer = MetricsImporter(harvester, MetricsImporter.DB_CONCEPT, MetricsImporter.TYPE_CONCEPT)
         
         self.client = MongoClient(harvester.get_mongo_host(), harvester.get_mongo_port())
         entity_rows = self.client.annocultor_db.TermList.find_one({ "codeUri" : entity_id })
@@ -668,7 +675,7 @@ class IndividualEntityBuilder:
         
         start = int(entity_id.split("/")[-1])
         #one_entity
-        solrDocFile = harvester.build_solr_doc(entity_chunk, start, True)
+        solrDocFile = harvester.build_solr_doc(entity_chunk, start, True, importer)
         return solrDocFile
     
         #solrDocFile = rawtype[0:-4].lower() + "_" + str(start) + ".xml file."

@@ -2,6 +2,9 @@ import requests
 import os
 import math
 from urllib.parse import quote_plus
+from MetricsRecord import MetricsRecord
+from MetricsImporter import MetricsImporter
+#from entities.ContextClassHarvesters import ContextClassHarvester, ConceptHarvester, AgentHarvester, PlaceHarvester, OrganizationHarvester
 
 class RelevanceCounter:
     """
@@ -18,11 +21,6 @@ class RelevanceCounter:
        it calculates the Europeana-related metrics (enrichment and term count)
        and inserts these into the database for later retrieval.
    """
-
-    METRIC_PAGERANK = 'pagerank'
-    METRIC_ENRICHMENT_HITS = 'europeana_enrichment_hits'
-    METRIC_WIKI_HITS = "wikipedia_hits"
-    METRIC_TERM_HITS = 'europeana_string_hits'
     
     URI_MARKUP = 'URI_MARKUP'
     QUERY_ENRICHMENT_HITS = "&q=\"" + URI_MARKUP + "\" AND contentTier:(2 OR 3 OR 4)"
@@ -34,33 +32,7 @@ class RelevanceCounter:
     WIKIDATA_DBPEDIA_PREFIX = 'http://wikidata.dbpedia.org/resource/'
         
     wikidata_europeana_mapping = None
-    METRIC_MAX_VALS = {
-        METRIC_PAGERANK : {
-            AGENT : 1204,
-            PLACE : 24772,
-            CONCEPT : 4055,
-            ORGANIZATION : 244
-            },
-        METRIC_ENRICHMENT_HITS : {
-            AGENT : 31734,
-            PLACE : 3065416,
-            CONCEPT : 1448506,
-            ORGANIZATION : 1
-            },
-        METRIC_TERM_HITS : {
-            AGENT : 2297502,
-            PLACE : 24576199,
-            CONCEPT : 8106790,
-            ORGANIZATION : 8977503
-            }
-        }
-    
-    METRIC_TRUST = {
-        METRIC_PAGERANK : 10,
-        METRIC_ENRICHMENT_HITS : 2,
-        METRIC_TERM_HITS : 1
-    }
-    
+
     RANGE_EXTENSION_FACTOR = 10000
      
     def __init__(self, name):
@@ -88,33 +60,35 @@ class RelevanceCounter:
             self.dbpath = os.path.join(os.path.dirname(__file__), 'db', self.name + ".db")
             self.db = slt.connect(self.dbpath)
         
-    def get_raw_relevance_metrics(self, uri, entity):
-        self.db_connect()
-        csr = self.db.cursor()
-        csr.execute("SELECT id, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank FROM hits WHERE id='"+ uri + "'")
-        first_row = csr.fetchone()
+    def get_raw_relevance_metrics(self, uri, entity, importer):
+        first_row = None
+        try:
+            self.db_connect()
+            csr = self.db.cursor()
+            csr.execute("SELECT id, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank FROM hits WHERE id='"+ uri + "'")
+            first_row = csr.fetchone()
+        except:
+            # database is empty - calculate metrics
+            wikidata_id = self.extract_wikidata_uri(entity)
+            metrics = importer.import_metrics_for_entity(uri, wikidata_id)
+            return metrics
+        
         if(first_row is not None):
             (_, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank) = first_row
             if(pagerank is None):
                 pagerank = 0
-        else:
+        else:            
             # wikipedia_hits is not used anymore
             wikipedia_hits = -1 
             europeana_enrichment_hits = self.get_enrichment_count(uri)
             europeana_string_hits = self.get_label_count(entity['representation'])
             wikidata_id = self.extract_wikidata_uri(entity)
             #TODO import page rank to DB file
-            #TODO use MetricRecord object
+            #TODO use MetricsRecord object
             pagerank = 0.0
             csr.execute("INSERT INTO hits(id, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank) VALUES (?, ?, ?, ?, ?, ?)", (uri, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank))
             self.db.commit()
-        metrics = {
-            self.METRIC_WIKI_HITS : wikipedia_hits,
-            self.METRIC_ENRICHMENT_HITS : europeana_enrichment_hits,
-            self.METRIC_TERM_HITS : europeana_string_hits,
-            self.METRIC_PAGERANK : pagerank
-        }
-        return metrics
+        return MetricsRecord(uri, 'fake label', wikidata_id, wikipedia_hits, europeana_string_hits, europeana_enrichment_hits, pagerank)
 
     def extract_wikidata_uri(self, entity):
         wikidata_uri = None
@@ -264,9 +238,9 @@ class RelevanceCounter:
 
     def calculate_normalized_score(self, pagerank, eu_enrichment_count, eu_hit_count):
         entity_type = self.name
-        normalized_pr = self.calculate_normalized_metric_value(entity_type, self.METRIC_PAGERANK, pagerank)
-        normalized_eh = self.calculate_normalized_metric_value(entity_type, self.METRIC_ENRICHMENT_HITS, eu_enrichment_count)
-        normalized_th = self.calculate_normalized_metric_value(entity_type, self.METRIC_TERM_HITS, eu_hit_count)
+        normalized_pr = self.calculate_normalized_metric_value(entity_type, MetricsRecord.METRIC_PAGERANK, pagerank)
+        normalized_eh = self.calculate_normalized_metric_value(entity_type, MetricsRecord.METRIC_ENRICHMENT_HITS, eu_enrichment_count)
+        normalized_th = self.calculate_normalized_metric_value(entity_type, MetricsRecord.METRIC_TERM_HITS, eu_hit_count)
         normalized_score = normalized_pr * max(normalized_eh, normalized_th)
                             
         return math.floor(normalized_score * self.RANGE_EXTENSION_FACTOR)
@@ -282,13 +256,13 @@ class RelevanceCounter:
         return normalized_metric_value    
     
     def coordination(self, entity_type, metric):
-        max_of_metric = max(self.METRIC_MAX_VALS[metric].values()) 
-        max__of_metric_for_type = self.METRIC_MAX_VALS[metric][entity_type]   
+        max_of_metric = max(MetricsRecord.METRIC_MAX_VALS[metric].values()) 
+        max__of_metric_for_type = MetricsRecord.METRIC_MAX_VALS[metric][entity_type]   
         #enforce result as float
         return max_of_metric / float(max__of_metric_for_type);
     
     def trust(self, entity_type):
-        return self.METRIC_TRUST[entity_type]
+        return MetricsRecord.METRIC_TRUST[entity_type]
     
 class AgentRelevanceCounter(RelevanceCounter):
 
