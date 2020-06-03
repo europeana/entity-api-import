@@ -225,13 +225,13 @@ class ContextClassHarvester:
         #numeric id is the last part of the URL 
         return parts[len(parts) - 1]
     
-    def build_solr_doc(self, entities, start, one_entity = False, importer=None):
+    def build_solr_doc(self, entities, start, one_entity = False):
         from xml.etree import ElementTree as ET
 
         docroot = ET.Element('add')
         for entity_id, values  in entities.items():
             print("processing entity:" + entity_id)
-            self.build_entity_doc(docroot, entity_id, values, importer)
+            self.build_entity_doc(docroot, entity_id, values)
         self.client.close()
         return self.write_to_file(docroot, start, one_entity)
         
@@ -277,14 +277,14 @@ class ContextClassHarvester:
         else:
             return self.write_dir + "/" + self.name + "/" + self.name + "_" + str(start) + "_" + str(start + ContextClassHarvester.CHUNK_SIZE) +  ".xml"
 
-    def grab_relevance_ratings(self, docroot, entity_id, entity, importer):
-        hitcounts = self.relevance_counter.get_raw_relevance_metrics(entity_id, entity, importer)
+    def grab_relevance_ratings(self, docroot, entity_id, entity):
+        metrics_record = self.relevance_counter.get_raw_relevance_metrics(entity)
         #eu_enrichments = hitcounts["europeana_enrichment_hits"]
         #eu_terms = hitcounts["europeana_string_hits"]
         #pagerank = hitcounts["pagerank"]
-        eu_enrichments = hitcounts.uri_hits
-        eu_terms = hitcounts.wpd_hits
-        pagerank = hitcounts.pagerank
+        eu_enrichments = metrics_record.uri_hits
+        eu_terms = metrics_record.wpd_hits
+        pagerank = metrics_record.pagerank
         if(self.ranking_model == self.config.HARVESTER_RELEVANCE_RANKING_MODEL_DEFAULT):
             ds = self.relevance_counter.calculate_relevance_score(entity_id, pagerank, eu_enrichments, eu_terms)
         elif(self.ranking_model == self.config.HARVESTER_RELEVANCE_RANKING_MODEL_NORMALIZED):
@@ -338,7 +338,7 @@ class ContextClassHarvester:
         if "modified" in entity_rows:
             self.add_field(docroot, "modified", entity_rows["modified"].isoformat()+"Z")
 
-    def process_representation(self, docroot, entity_id, entity, importer):
+    def process_representation(self, docroot, entity_id, entity):
         #all pref labels
         all_preflabels = []
         for characteristic in entity[self.REPRESENTATION]:
@@ -448,7 +448,7 @@ class ContextClassHarvester:
             self.add_field(docroot, 'foaf_depiction', depiction)
         
         self.grab_isshownby(docroot, entity_id)
-        self.grab_relevance_ratings(docroot, entity_id, entity, importer)
+        self.grab_relevance_ratings(docroot, entity_id, entity)
 
     def shingle_preflabels(self, preflabels):
         shingled_labels = []
@@ -493,7 +493,8 @@ class ConceptHarvester(ContextClassHarvester):
     def __init__(self):
         ContextClassHarvester.__init__(self, 'concepts')
         sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
-        self.relevance_counter = RelevanceCounter.ConceptRelevanceCounter()
+        self.importer = MetricsImporter(self, MetricsImporter.DB_CONCEPT, MetricsImporter.TYPE_CONCEPT)
+        self.relevance_counter = RelevanceCounter.ConceptRelevanceCounter(self.importer)
 
     def get_entity_count(self):
         #entities = self.client.annocultor_db.concept.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/concept/base).*$' }} )
@@ -527,7 +528,8 @@ class AgentHarvester(ContextClassHarvester):
         # TODO check if 'eu.europeana.corelib.solr.entity.AgentImpl' is correct and needed (see entityType column in the database)
         #ContextClassHarvester.__init__(self, 'agents', 'eu.europeana.corelib.solr.entity.AgentImpl')
         ContextClassHarvester.__init__(self, 'agents')
-        self.relevance_counter = RelevanceCounter.AgentRelevanceCounter()
+        self.importer = MetricsImporter(self, MetricsImporter.DB_AGENT, MetricsImporter.TYPE_AGENT)
+        self.relevance_counter = RelevanceCounter.AgentRelevanceCounter(self.importer)
 
     def get_entity_count(self):
         #agents = self.client.annocultor_db.people.distinct( 'codeUri' )
@@ -546,7 +548,7 @@ class AgentHarvester(ContextClassHarvester):
             agents_chunk[agent_id] = self.client.annocultor_db.TermList.find_one({ 'codeUri' : agent_id })
         return agents_chunk
 
-    def build_entity_doc(self, docroot, entity_id, entity_rows, importer):
+    def build_entity_doc(self, docroot, entity_id, entity_rows):
         if(entity_rows is None):
             self.log_missing_entry(entity_id)
             return
@@ -556,7 +558,7 @@ class AgentHarvester(ContextClassHarvester):
         self.add_field(doc, 'id', entity_id)
         self.add_field(doc, 'internal_type', 'Agent')
         self.process_created_modified_timestamps(doc, entity_rows)
-        self.process_representation(doc, entity_id, entity_rows, importer)
+        self.process_representation(doc, entity_id, entity_rows)
 
     def log_missing_entry(self, entity_id):
         msg = "Entity found in Agents but not TermList collection: " + entity_id
@@ -573,7 +575,8 @@ class PlaceHarvester(ContextClassHarvester):
         #TODO: check if 'eu.europeana.corelib.solr.entity.PlaceImpl' still needed/used
         #ContextClassHarvester.__init__(self, 'places', 'eu.europeana.corelib.solr.entity.PlaceImpl')
         ContextClassHarvester.__init__(self, 'places')
-        self.relevance_counter = RelevanceCounter.PlaceRelevanceCounter()
+        self.importer = MetricsImporter(self, MetricsImporter.DB_PLACE, MetricsImporter.TYPE_PLACE)
+        self.relevance_counter = RelevanceCounter.PlaceRelevanceCounter(self.importer)
 
     def get_entity_count(self):
         #place_list = self.client.annocultor_db.TermList.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/place/).*$' }} )
@@ -609,7 +612,8 @@ class OrganizationHarvester(ContextClassHarvester):
     def __init__(self):
         ContextClassHarvester.__init__(self, 'organizations')
         sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
-        self.relevance_counter = RelevanceCounter.OrganizationRelevanceCounter()
+        self.importer = MetricsImporter(self, MetricsImporter.DB_ORGANIZATION, MetricsImporter.TYPE_ORGANIZATION)        
+        self.relevance_counter = RelevanceCounter.OrganizationRelevanceCounter(self.importer)
 
     def get_mongo_host (self):
         return self.config.get_mongo_host(self.name)
@@ -656,16 +660,12 @@ class IndividualEntityBuilder:
         from pymongo import MongoClient
         if(entity_id.find("/place/") > 0):
             harvester = PlaceHarvester()
-            importer = MetricsImporter(harvester, MetricsImporter.DB_PLACE, MetricsImporter.TYPE_PLACE)
         elif(entity_id.find("/agent/") > 0):
             harvester = AgentHarvester()
-            importer = MetricsImporter(harvester, MetricsImporter.DB_AGENT, MetricsImporter.TYPE_AGENT)
         elif(entity_id.find("/organization/") > 0):
             harvester = OrganizationHarvester()
-            importer = MetricsImporter(harvester, MetricsImporter.DB_ORGANIZATION, MetricsImporter.TYPE_ORGANIZATION)
         else:
             harvester = ConceptHarvester()
-            importer = MetricsImporter(harvester, MetricsImporter.DB_CONCEPT, MetricsImporter.TYPE_CONCEPT)
         
         self.client = MongoClient(harvester.get_mongo_host(), harvester.get_mongo_port())
         entity_rows = self.client.annocultor_db.TermList.find_one({ "codeUri" : entity_id })
@@ -675,7 +675,7 @@ class IndividualEntityBuilder:
         
         start = int(entity_id.split("/")[-1])
         #one_entity
-        solrDocFile = harvester.build_solr_doc(entity_chunk, start, True, importer)
+        solrDocFile = harvester.build_solr_doc(entity_chunk, start, True)
         return solrDocFile
     
         #solrDocFile = rawtype[0:-4].lower() + "_" + str(start) + ".xml file."

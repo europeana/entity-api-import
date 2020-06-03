@@ -15,8 +15,8 @@ class MetricsRecord:
     PLACE = 'place'
     CONCEPT = 'concept'
     ORGANIZATION = 'organization'
-    #WIKIDATA_PREFFIX = 'http://www.wikidata.org/entity/'
-    #WIKIDATA_DBPEDIA_PREFIX = 'http://wikidata.dbpedia.org/resource/'
+    WIKIDATA_PREFFIX = 'http://www.wikidata.org/entity/'
+    WIKIDATA_DBPEDIA_PREFIX = 'http://wikidata.dbpedia.org/resource/'
         
     #wikidata_europeana_mapping = None
     METRIC_MAX_VALS = {

@@ -20,6 +20,3 @@ harvester.relevance.ranking.model = normalized
 
 #pagerank solr 
 pagerank.solr = 
-
-#search api solr
-search.api.solr = 

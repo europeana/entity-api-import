@@ -3,8 +3,8 @@ import os
 import math
 from urllib.parse import quote_plus
 from MetricsRecord import MetricsRecord
-from MetricsImporter import MetricsImporter
-#from entities.ContextClassHarvesters import ContextClassHarvester, ConceptHarvester, AgentHarvester, PlaceHarvester, OrganizationHarvester
+#from MetricsImporter import MetricsImporter
+
 
 class RelevanceCounter:
     """
@@ -28,11 +28,7 @@ class RelevanceCounter:
     PLACE = 'place'
     CONCEPT = 'concept'
     ORGANIZATION = 'organization'
-    WIKIDATA_PREFFIX = 'http://www.wikidata.org/entity/'
-    WIKIDATA_DBPEDIA_PREFIX = 'http://wikidata.dbpedia.org/resource/'
         
-    wikidata_europeana_mapping = None
-
     RANGE_EXTENSION_FACTOR = 10000
      
     def __init__(self, name):
@@ -60,53 +56,36 @@ class RelevanceCounter:
             self.dbpath = os.path.join(os.path.dirname(__file__), 'db', self.name + ".db")
             self.db = slt.connect(self.dbpath)
         
-    def get_raw_relevance_metrics(self, uri, entity, importer):
+    def get_raw_relevance_metrics(self, entity):
         first_row = None
         try:
             self.db_connect()
             csr = self.db.cursor()
-            csr.execute("SELECT id, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank FROM hits WHERE id='"+ uri + "'")
+            entity_id = entity['codeUri']
+            csr.execute("SELECT id, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank FROM hits WHERE id='"+ entity_id + "'")
             first_row = csr.fetchone()
         except:
             # database is empty - calculate metrics
-            wikidata_id = self.extract_wikidata_uri(entity)
-            metrics = importer.import_metrics_for_entity(uri, wikidata_id)
-            return metrics
+            return self.importer.import_metrics(entity)
         
         if(first_row is not None):
             (_, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank) = first_row
             if(pagerank is None):
                 pagerank = 0
         else:            
+            return self.importer.import_metrics(entity)
             # wikipedia_hits is not used anymore
-            wikipedia_hits = -1 
-            europeana_enrichment_hits = self.get_enrichment_count(uri)
-            europeana_string_hits = self.get_label_count(entity['representation'])
-            wikidata_id = self.extract_wikidata_uri(entity)
+            #wikipedia_hits = -1 
+            #europeana_enrichment_hits = self.get_enrichment_count(uri)
+            #europeana_string_hits = self.get_label_count(entity['representation'])
+            #wikidata_id = self.importer.extract_wikidata_uri(entity)
             #TODO import page rank to DB file
             #TODO use MetricsRecord object
-            pagerank = 0.0
-            csr.execute("INSERT INTO hits(id, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank) VALUES (?, ?, ?, ?, ?, ?)", (uri, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank))
-            self.db.commit()
-        return MetricsRecord(uri, 'fake label', wikidata_id, wikipedia_hits, europeana_string_hits, europeana_enrichment_hits, pagerank)
-
-    def extract_wikidata_uri(self, entity):
-        wikidata_uri = None
-        #places do not have the wikidata id in same as
-        if self.PLACE == self.name:
-            wikidata_uri = self.get_wikidata_uri_for_place(entity)        
-        else: 
-            representation = entity['representation']
-            if('owlSameAs' in representation.keys()):
-                for uri in representation['owlSameAs']:
-                    if (uri.startswith(self.WIKIDATA_PREFFIX)):
-                        wikidata_uri = uri
-                        #print("has wikidata uri: " + str(wikidata_uri))
-                        break
-                    elif (uri.startswith(self.WIKIDATA_DBPEDIA_PREFIX)):
-                        wikidata_uri= str(wikidata_uri).replace(self.WIKIDATA_DBPEDIA_PREFIX, self.WIKIDATA_PREFFIX)
-                        #print("has wikidata uri: " + str(wikidata_uri))
-        return wikidata_uri
+            #pagerank = 0.0
+            #csr.execute("INSERT INTO hits(id, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank) VALUES (?, ?, ?, ?, ?, ?)", (uri, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank))
+            #self.db.commit()
+        label = self.importer.extract_def_label(entity)
+        return MetricsRecord(entity_id, label, wikidata_id, wikipedia_hits, europeana_string_hits, europeana_enrichment_hits, pagerank)
     
     def extract_wikidata_identifier(self, wikidata_uri):
         wikidata_identifier = str(wikidata_uri).replace(self.WIKIDATA_PREFFIX, '')
@@ -122,18 +101,7 @@ class RelevanceCounter:
                 line = str(line).split(';', 3)
                 europeana_id = line[0]
                 wikidata_id = line[1]
-                self.wikidata_europeana_mapping[europeana_id] = wikidata_id 
-    
-    def get_wikidata_uri_for_place(self, entity):
-        self.load_wikidata_identifiers_for_places()
-        wikidata_id = None
-        if (self.wikidata_europeana_mapping is not None):
-            europeana_id = entity['codeUri']
-            if (europeana_id in self.wikidata_europeana_mapping.keys()):
-                wikidata_id = self.wikidata_europeana_mapping[europeana_id]
-        
-        return wikidata_id
-    
+                self.wikidata_europeana_mapping[europeana_id] = wikidata_id     
     
     def get_max_metrics(self):
         self.db_connect()
@@ -266,23 +234,27 @@ class RelevanceCounter:
     
 class AgentRelevanceCounter(RelevanceCounter):
 
-    def __init__(self):
+    def __init__(self, importer):
         RelevanceCounter.__init__(self, self.AGENT)
+        self.importer = importer
 
 class ConceptRelevanceCounter(RelevanceCounter):
 
-    def __init__(self):
+    def __init__(self, importer):
         RelevanceCounter.__init__(self, self.CONCEPT)
+        self.importer = importer
 
 class PlaceRelevanceCounter(RelevanceCounter):
 
-    def __init__(self):
+    def __init__(self, importer):
         RelevanceCounter.__init__(self, self.PLACE)
+        self.importer = importer
 
 class OrganizationRelevanceCounter(RelevanceCounter):
 
-    def __init__(self):
+    def __init__(self, importer):
         RelevanceCounter.__init__(self, self.ORGANIZATION)
+        self.importer = importer
 
     def get_enrichment_count(self, uri):
         #TODO add proper implementation of counting items for organizations

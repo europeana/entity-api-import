@@ -11,7 +11,6 @@ class DepictionManager:
 		from urllib.parse import unquote
 
 		current_dir=os.getcwd()
-		current_dir = current_dir.replace("\\tests","")
 		csv_file = os.path.join(current_dir, 'entities', 'resources', DepictionManager.DEPICTIONS_FILE)
 		with open(csv_file, encoding="utf-8") as resources_file:
 			for line in resources_file.readlines():
