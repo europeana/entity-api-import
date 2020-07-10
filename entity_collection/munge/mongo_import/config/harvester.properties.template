@@ -19,4 +19,4 @@ harvester.relevance.solr.core.uri = http://localhost:9191/solr/search_production
 harvester.relevance.ranking.model = normalized
 
 #pagerank solr 
-pagerank.solr = 
+pagerank.solr.uri = 

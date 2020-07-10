@@ -15,7 +15,7 @@ import entities.ContextClassHarvesters
 class HarvesterTest(unittest.TestCase):
    
     # tests on a couple of entities of each type
-    def test_transform(self):
+    def test_build_entity_list(self):
         ieb = entities.ContextClassHarvesters.IndividualEntityBuilder()
         test_entities = [
             "http://data.europeana.eu/agent/base/11241",   # Paris Hilton

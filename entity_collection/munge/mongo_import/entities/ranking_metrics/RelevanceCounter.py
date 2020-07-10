@@ -41,18 +41,6 @@ class RelevanceCounter:
             for line in wbets.readlines():
                 line = line.strip()
                 self.penalized_entities.append(line)
-        self.init_database()
-                
-    def init_database(self):
-        #conn = sqlite3.connect(self.database)
-        self.db_connect()
-        csr = self.db.cursor()
-        try:
-            DB_CREATE_STATEMENT = "CREATE TABLE IF NOT EXISTS hits (id VARCHAR(200) PRIMARY KEY, wikidata_id VARCHAR(400), wikipedia_hits INTEGER, europeana_enrichment_hits INTEGER, europeana_string_hits INTEGER, pagerank DOUBLE)"
-            csr.execute(DB_CREATE_STATEMENT)
-            csr = self.db.commit()
-        except slt.OperationalError as error:
-            print("cannot initialize database: " + str(error))
         
     def normalize_string(self, normanda):
         import re
@@ -66,38 +54,38 @@ class RelevanceCounter:
         if(self.db == None):
             self.dbpath = os.path.join(os.path.dirname(__file__), 'db', self.name + ".db")
             self.db = slt.connect(self.dbpath)
-        
-    def get_raw_relevance_metrics(self, entity):
-        first_row = None
-        try:
+    
+    def fetch_metrics_from_db(self, entity):
             self.db_connect()
             csr = self.db.cursor()
             entity_id = entity['codeUri']
             csr.execute("SELECT id, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank FROM hits WHERE id='"+ entity_id + "'")
-            first_row = csr.fetchone()
-        except:
-            # database is empty - calculate metrics
-            return self.importer.import_metrics(entity)
-        
+            return csr.fetchone()
+            
+    def get_raw_relevance_metrics(self, entity):
+        first_row = self.fetch_metrics_from_db(entity)
+        entity_id = entity['codeUri']
+        wikipedia_hits = -1 
+
         if(first_row is not None):
             (_, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank) = first_row
             if(pagerank is None):
-                pagerank = 0
-        else:            
-            return self.importer.import_metrics(entity)
+                pagerank = self.importer.get_pagerank_from_solr(wikidata_id)
+        else:
             # wikipedia_hits is not used anymore
-            #wikipedia_hits = -1 
-            #europeana_enrichment_hits = self.get_enrichment_count(uri)
-            #europeana_string_hits = self.get_label_count(entity['representation'])
-            #wikidata_id = self.importer.extract_wikidata_uri(entity)
+            europeana_enrichment_hits = self.get_enrichment_count(entity_id)
+            europeana_string_hits = self.get_label_count(entity['representation'])
+            wikidata_id = self.importer.extract_wikidata_uri(entity)
             #TODO import page rank to DB file
             #TODO use MetricsRecord object
-            #pagerank = 0.0
-            #csr.execute("INSERT INTO hits(id, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank) VALUES (?, ?, ?, ?, ?, ?)", (uri, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank))
-            #self.db.commit()
+            pagerank = self.importer.get_pagerank_from_solr(wikidata_id)
+            csr = self.db.cursor()
+            csr.execute("INSERT INTO hits(id, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank) VALUES (?, ?, ?, ?, ?, ?)", (entity_id, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank))
+            self.db.commit()
+        
         label = self.importer.extract_def_label(entity)
         return MetricsRecord(entity_id, label, wikidata_id, wikipedia_hits, europeana_string_hits, europeana_enrichment_hits, pagerank)
-    
+               
     def extract_wikidata_identifier(self, wikidata_uri):
         wikidata_identifier = str(wikidata_uri).replace(self.WIKIDATA_PREFFIX, '')
         #print("has wikidata identifier: " + wikidata_identifier)   
@@ -248,24 +236,28 @@ class AgentRelevanceCounter(RelevanceCounter):
     def __init__(self, importer):
         RelevanceCounter.__init__(self, self.AGENT)
         self.importer = importer
+        self.importer.init_database()
 
 class ConceptRelevanceCounter(RelevanceCounter):
 
     def __init__(self, importer):
         RelevanceCounter.__init__(self, self.CONCEPT)
         self.importer = importer
+        self.importer.init_database()
 
 class PlaceRelevanceCounter(RelevanceCounter):
 
     def __init__(self, importer):
         RelevanceCounter.__init__(self, self.PLACE)
         self.importer = importer
+        self.importer.init_database()
 
 class OrganizationRelevanceCounter(RelevanceCounter):
 
     def __init__(self, importer):
         RelevanceCounter.__init__(self, self.ORGANIZATION)
         self.importer = importer
+        self.importer.init_database()
 
     def get_enrichment_count(self, uri):
         #TODO add proper implementation of counting items for organizations

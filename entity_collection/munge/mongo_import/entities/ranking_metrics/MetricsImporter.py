@@ -67,7 +67,8 @@ class MetricsImporter:
         wikidata_id = self.extract_wikidata_uri(entity)
         
         #ensure database is initialized
-        self.init_database()
+        #database should be initialized in constructors
+        #self.init_database()
         
         #get entity count
         if entity_id is not None:
@@ -253,7 +254,7 @@ class MetricsImporter:
         record.uri_hits = metrics[MetricsRecord.METRIC_ENRICHMENT_HITS]
         record.term_hits = metrics[MetricsRecord.METRIC_TERM_HITS]
         record.wpd_hits = metrics[MetricsRecord.METRIC_WIKI_HITS]
-        record.pagerank = self.get_page_rank(record.wikidata_id, self.pageranks)
+        record.pagerank = self.get_page_rank(record.wikidata_id)
         return record
         
     def store_metric_records(self, metric_records):
@@ -317,13 +318,13 @@ class MetricsImporter:
             label = next(iter(pref_label.values()))[0]
         return label
 
-    def get_page_rank(self, wikidata_id, all_pageranks):
+    def get_page_rank(self, wikidata_id):
         pagerank = 0.0
         #return default value
         if(wikidata_id is None):
             return pagerank
         try:
-            pagerank = float(all_pageranks[wikidata_id].strip())
+            pagerank = float(self.all_pageranks[wikidata_id].strip())
             #print("found wikidata page rank for identifier:" + wikidata_id)            
         except (IndexError, KeyError, ValueError):
             #response parsing or value retrieval errors
@@ -335,22 +336,15 @@ class MetricsImporter:
         if(len(self.wkdt_uris) == 0):
             return
         
-        # process pagerank file, grab relevant items
-        self.wikidata_pr_file =  os.path.join(os.path.dirname(__file__), self.WKDT_PAGE_RANK)
-        with open(self.wikidata_pr_file) as ult:
-            for line in ult.readlines():
-                (wkd_dbp_uri, pr) = line.split("\t")
-                
-                wkdt_uri = wkd_dbp_uri.replace(
-                    MetricsRecord.WIKIDATA_DBPEDIA_PREFIX, 
-                    MetricsRecord.WIKIDATA_PREFFIX)
-                #keep in memory only the EC organizations
-                if(wkdt_uri in self.wkdt_uris):
-                    self.pageranks[wkdt_uri] = pr        
+        #TODO: retrieve pageranks with one solr query
+        for wkdt_uri in self.wkdt_uris:
+            self.pageranks[wkdt_uri] = self.get_pagerank_from_solr(wkdt_uri)                    
         
     # this method extracts pagerank from solr for provided uri
     def get_pagerank_from_solr(self, uri):
-        qry = self.config.get_pagerank_solr() + "pagerank/select?q=page_url:\"" + uri + "\""
+        if(uri is None):
+            return 0
+        qry = self.config.get_pagerank_solr() + "/pagerank/select?q=page_url:\"" + uri + "\""
         res = requests.get(qry)
         try:
             return res.json()['response']['docs'][0]['page_rank']
