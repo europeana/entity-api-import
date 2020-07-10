@@ -294,8 +294,7 @@ class ContextClassHarvester:
         self.add_suggest_filters(docroot, eu_enrichments)
         return True
 
-    def grab_isshownby(self, docroot, entity_id):
-        web_resource = self.depiction_manager.get_depiction(entity_id)
+    def grab_isshownby(self, docroot, web_resource):
         if(web_resource is not None):
             self.add_field(docroot, 'isShownBy', web_resource.media_url)
             self.add_field(docroot, 'isShownBy.source', web_resource.europeana_item_id)
@@ -433,7 +432,9 @@ class ContextClassHarvester:
                         print('Attribute found in source but undefined in schema.' + str(error))
                     
         #add suggester payload
-        payload = self.build_payload(entity_id, entity)
+        web_resource = self.depiction_manager.get_depiction(entity_id)
+        self.grab_isshownby(docroot, web_resource)
+        payload = self.build_payload(entity_id, entity, web_resource)
         self.add_field(docroot, 'payload', json.dumps(payload))
         #add suggester field
         all_preflabels = self.shingle_preflabels(all_preflabels)
@@ -443,7 +444,6 @@ class ContextClassHarvester:
         if(depiction):
             self.add_field(docroot, 'foaf_depiction', depiction)
         
-        self.grab_isshownby(docroot, entity_id)
         self.grab_relevance_ratings(docroot, entity_id, entity)
 
     def shingle_preflabels(self, preflabels):
@@ -455,10 +455,10 @@ class ContextClassHarvester:
                 shingled_labels.append(shingle)
         return shingled_labels
 
-    def build_payload(self, entity_id, entity_rows):
+    def build_payload(self, entity_id, entity_rows, web_resource):
         #TODO set entity type as class attribute in Harvester
         entity_type = entity_rows['entityType'].replace('Impl', '')
-        payload = self.preview_builder.build_preview(entity_type, entity_id, entity_rows[self.REPRESENTATION])
+        payload = self.preview_builder.build_preview(entity_type, entity_id, entity_rows[self.REPRESENTATION], web_resource)  
         return payload
 
     def add_suggest_filters(self, docroot, enrichtment_hits):
@@ -596,7 +596,7 @@ class PlaceHarvester(ContextClassHarvester):
         self.process_created_modified_timestamps(doc, entity_rows)
         self.process_representation(doc, entity_id, entity_rows)
     
-    def grab_isshownby(self, docroot, entity_id):
+    def grab_isshownby(self, docroot, web_resource):
         #isShownBy not supported for places
         return
 
@@ -639,7 +639,7 @@ class OrganizationHarvester(ContextClassHarvester):
         self.process_created_modified_timestamps(doc, entity_rows)
         self.process_representation(doc, entity_id, entity_rows)
 
-    def grab_isshownby(self, docroot, entity_id):
+    def grab_isshownby(self, docroot, web_resource):
         #isShownBy not supported for organizations
         return 
     

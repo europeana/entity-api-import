@@ -55,8 +55,9 @@ class HarvesterTest(unittest.TestCase):
         #Birger Sjöberg
         #entity_id = "http://data.europeana.eu/agent/base/54407"
         # J.R. (musician)
-        entity_id = "http://data.europeana.eu/agent/base/100013"
-        
+        #entity_id = "http://data.europeana.eu/agent/base/100013"
+        # Leonardo Da Vinci
+        entity_id = "http://data.europeana.eu/agent/base/146741"
         #government of catalunia
         #entity_id = "http://data.europeana.eu/organization/1482250000004503580"
         ieb = entities.ContextClassHarvesters.IndividualEntityBuilder()

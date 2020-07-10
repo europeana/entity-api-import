@@ -218,6 +218,7 @@ class MetricsImporter:
         print("stored metrics: ", len(metric_records))
         conn.commit()
 
+    #TODO: same initialization as in Relevance Counter, should be refactored
     def init_database(self):
         #conn = sqlite3.connect(self.database)
         self.dbpath = os.path.join(os.path.dirname(__file__), self.database)

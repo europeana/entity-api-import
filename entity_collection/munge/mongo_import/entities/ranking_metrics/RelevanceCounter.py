@@ -2,6 +2,7 @@ import requests
 import os
 import math
 from urllib.parse import quote_plus
+import sqlite3 as slt
 
 class RelevanceCounter:
     """
@@ -73,7 +74,19 @@ class RelevanceCounter:
             for line in wbets.readlines():
                 line = line.strip()
                 self.penalized_entities.append(line)
-
+        self.init_database()
+                
+    def init_database(self):
+        #conn = sqlite3.connect(self.database)
+        self.db_connect()
+        csr = self.db.cursor()
+        try:
+            DB_CREATE_STATEMENT = "CREATE TABLE IF NOT EXISTS hits (id VARCHAR(200) PRIMARY KEY, wikidata_id VARCHAR(400), wikipedia_hits INTEGER, europeana_enrichment_hits INTEGER, europeana_string_hits INTEGER, pagerank DOUBLE)"
+            csr.execute(DB_CREATE_STATEMENT)
+            csr = self.db.commit()
+        except slt.OperationalError as error:
+            print("cannot initialize database: " + str(error))
+        
     def normalize_string(self, normanda):
         import re
 
@@ -83,7 +96,6 @@ class RelevanceCounter:
         return normatus
 
     def db_connect(self):
-        import sqlite3 as slt
         if(self.db == None):
             self.dbpath = os.path.join(os.path.dirname(__file__), 'db', self.name + ".db")
             self.db = slt.connect(self.dbpath)
@@ -93,6 +105,7 @@ class RelevanceCounter:
         csr = self.db.cursor()
         csr.execute("SELECT id, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank FROM hits WHERE id='"+ uri + "'")
         first_row = csr.fetchone()
+                
         if(first_row is not None):
             (_, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank) = first_row
             if(pagerank is None):

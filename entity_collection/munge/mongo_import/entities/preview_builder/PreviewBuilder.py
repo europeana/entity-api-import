@@ -19,7 +19,7 @@ class PreviewBuilder:
         if(must_load_depictions):
             self.load_depictions()
         
-    def build_preview(self, entity_type, entity_id, entity_rows):
+    def build_preview(self, entity_type, entity_id, entity_rows, web_resource):
         preview_fields = {}
         preview_fields['id'] = entity_id
         preview_fields['type'] = entity_type
@@ -33,6 +33,9 @@ class PreviewBuilder:
         depiction = self.build_depiction(entity_id, entity_rows)
         if(depiction):
             preview_fields['depiction'] = depiction 
+        if(web_resource):
+            preview_fields['isShownBy'] = self.build_isshownby_label(web_resource)
+            
         if(entity_type == "Agent"):
             if(self.build_birthdate(entity_rows)): preview_fields['dateOfBirth'] = self.build_birthdate(entity_rows)
             if(self.build_deathdate(entity_rows)): preview_fields['dateOfDeath'] = self.build_deathdate(entity_rows)
@@ -51,6 +54,14 @@ class PreviewBuilder:
                 preview_fields['organizationDomain'] = self.get_org_field_en(entity_rows, "edmOrganizationDomain")
         return preview_fields
 
+    def build_isshownby_label(self, web_resource):
+        isshownby_fields = {}
+        isshownby_fields['id'] = web_resource.media_url
+        isshownby_fields['type'] = 'WebResource'
+        isshownby_fields['source'] = web_resource.europeana_item_id
+        isshownby_fields['thumbnail'] = web_resource.thumbnail_url
+        return isshownby_fields
+            
     def build_pref_label(self, entity_rows):
         all_langs = {}
         for k in entity_rows['prefLabel']:
