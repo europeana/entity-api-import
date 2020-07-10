@@ -8,6 +8,7 @@ from ranking_metrics import RelevanceCounter
 import json
 from _struct import error
 import DepictionManager
+from MetricsImporter import MetricsImporter
         
 class LanguageValidator:
 
@@ -277,10 +278,13 @@ class ContextClassHarvester:
             return self.write_dir + "/" + self.name + "/" + self.name + "_" + str(start) + "_" + str(start + ContextClassHarvester.CHUNK_SIZE) +  ".xml"
 
     def grab_relevance_ratings(self, docroot, entity_id, entity):
-        hitcounts = self.relevance_counter.get_raw_relevance_metrics(entity_id, entity)
-        eu_enrichments = hitcounts["europeana_enrichment_hits"]
-        eu_terms = hitcounts["europeana_string_hits"]
-        pagerank = hitcounts["pagerank"]
+        metrics_record = self.relevance_counter.get_raw_relevance_metrics(entity)
+        #eu_enrichments = hitcounts["europeana_enrichment_hits"]
+        #eu_terms = hitcounts["europeana_string_hits"]
+        #pagerank = hitcounts["pagerank"]
+        eu_enrichments = metrics_record.uri_hits
+        eu_terms = metrics_record.wpd_hits
+        pagerank = metrics_record.pagerank
         if(self.ranking_model == self.config.HARVESTER_RELEVANCE_RANKING_MODEL_DEFAULT):
             ds = self.relevance_counter.calculate_relevance_score(entity_id, pagerank, eu_enrichments, eu_terms)
         elif(self.ranking_model == self.config.HARVESTER_RELEVANCE_RANKING_MODEL_NORMALIZED):
@@ -489,7 +493,8 @@ class ConceptHarvester(ContextClassHarvester):
     def __init__(self):
         ContextClassHarvester.__init__(self, 'concepts')
         sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
-        self.relevance_counter = RelevanceCounter.ConceptRelevanceCounter()
+        self.importer = MetricsImporter(self, MetricsImporter.DB_CONCEPT, MetricsImporter.TYPE_CONCEPT)
+        self.relevance_counter = RelevanceCounter.ConceptRelevanceCounter(self.importer)
 
     def get_entity_count(self):
         #entities = self.client.annocultor_db.concept.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/concept/base).*$' }} )
@@ -523,7 +528,8 @@ class AgentHarvester(ContextClassHarvester):
         # TODO check if 'eu.europeana.corelib.solr.entity.AgentImpl' is correct and needed (see entityType column in the database)
         #ContextClassHarvester.__init__(self, 'agents', 'eu.europeana.corelib.solr.entity.AgentImpl')
         ContextClassHarvester.__init__(self, 'agents')
-        self.relevance_counter = RelevanceCounter.AgentRelevanceCounter()
+        self.importer = MetricsImporter(self, MetricsImporter.DB_AGENT, MetricsImporter.TYPE_AGENT)
+        self.relevance_counter = RelevanceCounter.AgentRelevanceCounter(self.importer)
 
     def get_entity_count(self):
         #agents = self.client.annocultor_db.people.distinct( 'codeUri' )
@@ -569,7 +575,8 @@ class PlaceHarvester(ContextClassHarvester):
         #TODO: check if 'eu.europeana.corelib.solr.entity.PlaceImpl' still needed/used
         #ContextClassHarvester.__init__(self, 'places', 'eu.europeana.corelib.solr.entity.PlaceImpl')
         ContextClassHarvester.__init__(self, 'places')
-        self.relevance_counter = RelevanceCounter.PlaceRelevanceCounter()
+        self.importer = MetricsImporter(self, MetricsImporter.DB_PLACE, MetricsImporter.TYPE_PLACE)
+        self.relevance_counter = RelevanceCounter.PlaceRelevanceCounter(self.importer)
 
     def get_entity_count(self):
         #place_list = self.client.annocultor_db.TermList.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/place/).*$' }} )
@@ -605,7 +612,8 @@ class OrganizationHarvester(ContextClassHarvester):
     def __init__(self):
         ContextClassHarvester.__init__(self, 'organizations')
         sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
-        self.relevance_counter = RelevanceCounter.OrganizationRelevanceCounter()
+        self.importer = MetricsImporter(self, MetricsImporter.DB_ORGANIZATION, MetricsImporter.TYPE_ORGANIZATION)        
+        self.relevance_counter = RelevanceCounter.OrganizationRelevanceCounter(self.importer)
 
     def get_mongo_host (self):
         return self.config.get_mongo_host(self.name)
@@ -650,7 +658,6 @@ class IndividualEntityBuilder:
 
     def build_individual_entity(self, entity_id):
         from pymongo import MongoClient
-        import shutil
         if(entity_id.find("/place/") > 0):
             harvester = PlaceHarvester()
         elif(entity_id.find("/agent/") > 0):

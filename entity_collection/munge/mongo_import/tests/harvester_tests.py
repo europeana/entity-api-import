@@ -7,10 +7,10 @@
 # data of the imported entities itself.
 #
 #=========================================================================#
-import sys
+#import sys
 import unittest
 import entities.ContextClassHarvesters
-import entities.preview_builder.PreviewBuilder
+#import entities.preview_builder.PreviewBuilder
 
 class HarvesterTest(unittest.TestCase):
    
@@ -66,6 +66,6 @@ class HarvesterTest(unittest.TestCase):
     def test_OrganizationHarvester(self):
         ol = entities.ContextClassHarvesters.OrganizationHarvester()
         entity_list = ol.build_entity_chunk(0)
-        print("First chunk: 0" + len(entity_list))
+        print("First chunk: 0" + str(len(entity_list)))
           
         
