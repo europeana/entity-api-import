@@ -9,6 +9,9 @@ class HarvesterConfig:
     HARVESTER_RELEVANCE_RANKING_MODEL = "harvester.relevance.ranking.model"
     HARVESTER_RELEVANCE_RANKING_MODEL_DEFAULT = "default"
     HARVESTER_RELEVANCE_RANKING_MODEL_NORMALIZED = "normalized"
+
+    # pagerank settings
+    HARVESTER_PAGERANK_SOLR_URI = 'pagerank.solr.uri'
     
     CONFIG_DIR = os.path.join(os.path.dirname(__file__), '..', 'config')
     
@@ -31,6 +34,10 @@ class HarvesterConfig:
     
     def get_relevance_solr (self):
         key = HarvesterConfig.HARVESTER_RELEVANCE_SOLR_URI
+        return self.config.get(HarvesterConfig.DEFAULT_CONFIG_SECTION, key)
+        
+    def get_pagerank_solr (self):
+        key = HarvesterConfig.HARVESTER_PAGERANK_SOLR_URI
         return self.config.get(HarvesterConfig.DEFAULT_CONFIG_SECTION, key)
         
     def get_relevance_ranking_model (self):

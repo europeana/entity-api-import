@@ -1,28 +1,30 @@
 import requests
-import json
+#import json
 import sqlite3
-import urllib3
+#import urllib3
 import os
 from pymongo import MongoClient
 from entities import HarvesterConfig
-from entities.ContextClassHarvesters import ContextClassHarvester, ConceptHarvester, AgentHarvester, PlaceHarvester, OrganizationHarvester
-from RelevanceCounter import RelevanceCounter
+#from entities.ContextClassHarvesters import ContextClassHarvester, ConceptHarvester, AgentHarvester, PlaceHarvester, OrganizationHarvester
+##from RelevanceCounter import RelevanceCounter
+from MetricsRecord import MetricsRecord
+#import MetricsRecord
 #from entities.ranking_metrics.RelevanceCounter import RelevanceCounter 
 #from urllib.parse import quote
 #from _ast import If
 #from symbol import for_stmt
 
-class MetricsRecord:
+#class MetricsRecord:
 
-    def __init__(self, entity_id, label, wikidata_id = None, uri_hits=0, term_hits=0, wpd_hits=0, pagerank=0):
-        self.id = entity_id
-        self.def_label = label
-        self.wikidata_id = wikidata_id
-        self.uri_hits = uri_hits
-        self.term_hits = term_hits
-        self.wpd_hits = wpd_hits
-        self.pagerank = pagerank
-        self.all_labels = []
+#    def __init__(self, entity_id, label, wikidata_id = None, uri_hits=0, term_hits=0, wpd_hits=0, pagerank=0):
+#        self.id = entity_id
+#        self.def_label = label
+#        self.wikidata_id = wikidata_id
+#        self.uri_hits = uri_hits
+#        self.term_hits = term_hits
+#        self.wpd_hits = wpd_hits
+#        self.pagerank = pagerank
+#        self.all_labels = []
 
 class MetricsImporter:
 
@@ -43,7 +45,8 @@ class MetricsImporter:
     WKDT_PAGE_RANK = './resources/wd_pr_ultimate.tsv' 
     #WKDT_PAGE_RANK = './resources/wd_pr_test.tsv' 
 
-
+    wikidata_europeana_mapping = None
+    
     def __init__(self, harvester, database, entity_type):
         self.config = HarvesterConfig.HarvesterConfig()
         self.mongo = MongoClient(self.config.get_mongo_host(), self.config.get_mongo_port())
@@ -57,26 +60,81 @@ class MetricsImporter:
         self.metric_records = []
         
         
-    def import_metrics(self):
+    def import_metrics(self, entity=None):
         print("start importing metrics for entity type:" + self.entity_type) 
+        
+        entity_id = entity['codeUri']
+        wikidata_id = self.extract_wikidata_uri(entity)
+        
         #ensure database is initialized
         self.init_database()
         
         #get entity count
-        self.entity_count = self.get_entity_count()
+        if entity_id is not None:
+            self.entity_count = 1
+
+            #process pagerank from Solr, grab relevant items
+            pr=self.get_pagerank_from_solr(wikidata_id)
+            if (pr is not None):
+                self.pageranks[wikidata_id] = pr 
+        else:
+            self.entity_count = self.get_entity_count()
         
-        #load page ranks
-        self.load_wikidata_uris()
-        
-        #load page ranks
-        self.load_page_ranks()
-        
+            #load page ranks
+            self.load_wikidata_uris()
+            
+            #load page ranks
+            self.load_page_ranks()
+            
         #store metrics to db
         self.store_metrics()
+        return MetricsRecord(entity_id, 'fake label', wikidata_id, -1, -1, -1, pr) 
                         
+        
+    def load_wikidata_identifiers_for_places(self):
+        if (self.wikidata_europeana_mapping is not None):
+            return
+        self.wikidata_europeana_mapping = {}
+        with open(os.path.join(os.path.dirname(__file__), 'resources', 'places_data_wikidata_all.csv'), encoding="UTF-8") as wikidata_mapping:
+            for line in wikidata_mapping.readlines():
+                line = str(line).split(';', 3)
+                europeana_id = line[0]
+                wikidata_id = line[1]
+                self.wikidata_europeana_mapping[europeana_id] = wikidata_id    
+                
+                    
+    def get_wikidata_uri_for_place(self, entity):
+        self.load_wikidata_identifiers_for_places()
+        wikidata_id = None
+        if (self.wikidata_europeana_mapping is not None):
+            europeana_id = entity['codeUri']
+            if (europeana_id in self.wikidata_europeana_mapping.keys()):
+                wikidata_id = self.wikidata_europeana_mapping[europeana_id]
+        
+        return wikidata_id
+    
+        
+    def extract_wikidata_uri(self, entity):
+        wikidata_uri = None
+        #places do not have the wikidata id in same as
+        if MetricsRecord.PLACE in self.entity_type.lower():
+            wikidata_uri = self.get_wikidata_uri_for_place(entity)        
+        else: 
+            representation = entity['representation']
+            if('owlSameAs' in representation.keys()):
+                for uri in representation['owlSameAs']:
+                    if (uri.startswith(MetricsRecord.WIKIDATA_PREFFIX)):
+                        wikidata_uri = uri
+                        #print("has wikidata uri: " + str(wikidata_uri))
+                        break
+                    elif (uri.startswith(MetricsRecord.WIKIDATA_DBPEDIA_PREFIX)):
+                        wikidata_uri= str(wikidata_uri).replace(MetricsRecord.WIKIDATA_DBPEDIA_PREFIX, MetricsRecord.WIKIDATA_PREFFIX)
+                        #print("has wikidata uri: " + str(wikidata_uri))
+        return wikidata_uri
+
     
     def import_pagerank(self):
-        print("start importing metrics for entity type:" + self.entity_type) 
+        print("start importing pagerank for entity type:" + self.entity_type) 
         #ensure database is initialized
         self.init_database()
         
@@ -128,7 +186,7 @@ class MetricsImporter:
         page_rank = 0.0;
         
         while (start < self.entity_count):
-            print("start storing metrics:" + str(start))
+            print("start updating pagerank:" + str(start))
             #create OrgRecords
             #self.mongo.annocultor_db.TermList.find({ "entityType" : self.entity_type})
             entities = self.fetch_entity_batch(start)
@@ -137,7 +195,7 @@ class MetricsImporter:
             for entity in entities:
                 #add to record list
                 entity_id = entity['codeUri']
-                wikidata_id = self.harvester.relevance_counter.extract_wikidata_uri(entity)
+                wikidata_id = self.extract_wikidata_uri(entity)
                 page_rank = 0.0
                 if (wikidata_id in self.pageranks.keys()):
                     page_rank = float(self.pageranks[wikidata_id]) 
@@ -187,14 +245,14 @@ class MetricsImporter:
         record.all_labels = self.extract_all_labels(entity)
             
         #saves values in the database, but not page rank and labels
-        metrics = self.harvester.relevance_counter.get_raw_relevance_metrics(entity_id, entity)
+        metrics = self.harvester.relevance_counter.get_raw_relevance_metrics(entity)
         #page rank
-        record.wikidata_id = self.harvester.relevance_counter.extract_wikidata_uri(entity)
+        record.wikidata_id = self.extract_wikidata_uri(entity)
         #wikidata_identifier = harvester.relevance_counter.extract_wikidata_identifier(record.wikidata_id)
         
-        record.uri_hits = metrics[RelevanceCounter.METRIC_ENRICHMENT_HITS]
-        record.term_hits = metrics[RelevanceCounter.METRIC_TERM_HITS]
-        record.wpd_hits = metrics[RelevanceCounter.METRIC_WIKI_HITS]
+        record.uri_hits = metrics[MetricsRecord.METRIC_ENRICHMENT_HITS]
+        record.term_hits = metrics[MetricsRecord.METRIC_TERM_HITS]
+        record.wpd_hits = metrics[MetricsRecord.METRIC_WIKI_HITS]
         record.pagerank = self.get_page_rank(record.wikidata_id, self.pageranks)
         return record
         
@@ -242,7 +300,7 @@ class MetricsImporter:
                     pass    
         return lbls    
 
-    def    extract_def_label(self, term_list):    
+    def extract_def_label(self, term_list):    
         #en_label = entity['representation']['prefLabel']['en'][0]
         label = 'Not available'
         pref_label = term_list['representation']['prefLabel']
@@ -275,6 +333,7 @@ class MetricsImporter:
     def load_page_ranks(self):
         if(len(self.wkdt_uris) == 0):
             return
+        
         # process pagerank file, grab relevant items
         self.wikidata_pr_file =  os.path.join(os.path.dirname(__file__), self.WKDT_PAGE_RANK)
         with open(self.wikidata_pr_file) as ult:
@@ -282,13 +341,21 @@ class MetricsImporter:
                 (wkd_dbp_uri, pr) = line.split("\t")
                 
                 wkdt_uri = wkd_dbp_uri.replace(
-                    RelevanceCounter.WIKIDATA_DBPEDIA_PREFIX, 
-                    RelevanceCounter.WIKIDATA_PREFFIX)
+                    MetricsRecord.WIKIDATA_DBPEDIA_PREFIX, 
+                    MetricsRecord.WIKIDATA_PREFFIX)
                 #keep in memory only the EC organizations
                 if(wkdt_uri in self.wkdt_uris):
                     self.pageranks[wkdt_uri] = pr        
         
-    
+    # this method extracts pagerank from solr for provided uri
+    def get_pagerank_from_solr(self, uri):
+        qry = self.config.get_pagerank_solr() + "pagerank/select?q=page_url:\"" + uri + "\""
+        res = requests.get(qry)
+        try:
+            return res.json()['response']['docs'][0]['page_rank']
+        except:
+            return 0
+            
     def load_wikidata_uris(self):
         batch = 0
         start = 0    
@@ -300,7 +367,7 @@ class MetricsImporter:
             
             #build metric records
             for entity in entities:
-                wikidata_uri = self.harvester.relevance_counter.extract_wikidata_uri(entity) 
+                wikidata_uri = self.extract_wikidata_uri(entity) 
                 if(wikidata_uri is not None):
                     #wkdt_identifier = self.harvester.relevance_counter.extract_wikidata_identifier(wikidata_uri)
                     self.wkdt_uris.append(wikidata_uri)
@@ -318,3 +385,4 @@ class MetricsImporter:
         
     def get_entity_count(self):
         return self.mongo.annocultor_db.TermList.count({ "entityType" : self.entity_type})
+
