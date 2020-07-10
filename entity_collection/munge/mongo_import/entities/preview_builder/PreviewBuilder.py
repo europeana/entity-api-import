@@ -19,16 +19,23 @@ class PreviewBuilder:
         if(must_load_depictions):
             self.load_depictions()
         
-    def build_preview(self, entity_type, entity_id, entity_rows):
+    def build_preview(self, entity_type, entity_id, entity_rows, web_resource):
         preview_fields = {}
         preview_fields['id'] = entity_id
         preview_fields['type'] = entity_type
         preview_fields['prefLabel'] = self.build_pref_label(entity_rows)
+        altLabel = self.build_alt_label(entity_rows)
+        if(altLabel is not None):
+            preview_fields['altLabel'] = altLabel
+        
         preview_fields['hiddenLabel'] = self.build_max_recall(entity_type, entity_rows)
         #depiction
         depiction = self.build_depiction(entity_id, entity_rows)
         if(depiction):
             preview_fields['depiction'] = depiction 
+        if(web_resource):
+            preview_fields['isShownBy'] = self.build_isshownby_label(web_resource)
+            
         if(entity_type == "Agent"):
             if(self.build_birthdate(entity_rows)): preview_fields['dateOfBirth'] = self.build_birthdate(entity_rows)
             if(self.build_deathdate(entity_rows)): preview_fields['dateOfDeath'] = self.build_deathdate(entity_rows)
@@ -47,10 +54,37 @@ class PreviewBuilder:
                 preview_fields['organizationDomain'] = self.get_org_field_en(entity_rows, "edmOrganizationDomain")
         return preview_fields
 
+    def build_isshownby_label(self, web_resource):
+        isshownby_fields = {}
+        isshownby_fields['id'] = web_resource.media_url
+        isshownby_fields['type'] = 'WebResource'
+        isshownby_fields['source'] = web_resource.europeana_item_id
+        isshownby_fields['thumbnail'] = web_resource.thumbnail_url
+        return isshownby_fields
+            
     def build_pref_label(self, entity_rows):
         all_langs = {}
         for k in entity_rows['prefLabel']:
             all_langs[k] = entity_rows['prefLabel'][k][0]
+        return all_langs
+
+    def build_alt_label(self, entity_rows):
+        all_langs = {}
+        if('altLabel' in entity_rows.keys()):
+            for k in entity_rows['altLabel']:
+                all_langs[k] = entity_rows['altLabel'][k]
+        else:
+            return None        
+        return all_langs
+    
+    #TODO refactor and remove dupplication in labe methods 
+    def build_acronym(self, entity_rows):
+        all_langs = {}
+        if('edmAcronym' in entity_rows.keys()):
+            for k in entity_rows['edmAcronym']:
+                all_langs[k] = entity_rows['edmAcronym'][k]
+        else:
+            return None        
         return all_langs
 
     def build_depiction(self, entity_id, entity_rows):
@@ -68,14 +102,6 @@ class PreviewBuilder:
         else:
             return None
 
-    def build_acronym(self, entity_rows):
-        all_langs = {}
-        if('edmAcronym' in entity_rows.keys()):
-            for k in entity_rows['edmAcronym']:
-                all_langs[k] = entity_rows['edmAcronym'][k]
-        else:
-            return None        
-        return all_langs
 
     def get_org_field_en(self, entity_rows, entity_key):
         if(entity_key in entity_rows.keys()):
