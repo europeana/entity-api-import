@@ -61,7 +61,8 @@ class RelevanceCounter:
             entity_id = entity['codeUri']
             csr.execute("SELECT id, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank FROM hits WHERE id='"+ entity_id + "'")
             return csr.fetchone()
-            
+    
+    #TODO move method to metric importer        
     def get_raw_relevance_metrics(self, entity):
         first_row = self.fetch_metrics_from_db(entity)
         entity_id = entity['codeUri']
@@ -84,7 +85,7 @@ class RelevanceCounter:
             self.db.commit()
         
         label = self.importer.extract_def_label(entity)
-        return MetricsRecord(entity_id, label, wikidata_id, wikipedia_hits, europeana_string_hits, europeana_enrichment_hits, pagerank)
+        return MetricsRecord(entity_id, label, wikidata_id, europeana_enrichment_hits, europeana_string_hits, wikipedia_hits, pagerank)
                
     def extract_wikidata_identifier(self, wikidata_uri):
         wikidata_identifier = str(wikidata_uri).replace(self.WIKIDATA_PREFFIX, '')
@@ -279,8 +280,4 @@ class OrganizationRelevanceCounter(RelevanceCounter):
         #print(term_hits_query)
         return term_hits_query
     
-    #def get_label_count(self, representation):
-    #    #TODO add proper implementation of counting enrichments with organizations
-    #    print("return default value for label count: 1")
-    #   return 1
 
