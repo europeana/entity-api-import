@@ -283,7 +283,7 @@ class ContextClassHarvester:
         #eu_terms = hitcounts["europeana_string_hits"]
         #pagerank = hitcounts["pagerank"]
         eu_enrichments = metrics_record.uri_hits
-        eu_terms = metrics_record.wpd_hits
+        eu_terms = metrics_record.term_hits
         pagerank = metrics_record.pagerank
         if(self.ranking_model == self.config.HARVESTER_RELEVANCE_RANKING_MODEL_DEFAULT):
             ds = self.relevance_counter.calculate_relevance_score(entity_id, pagerank, eu_enrichments, eu_terms)
