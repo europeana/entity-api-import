@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 import os, re
+from EnrichmentEntity import EnrichmentEntity
 
 class PreviewBuilder:
 
@@ -10,12 +11,10 @@ class PreviewBuilder:
     def __init__(self, mongo_client, entity_type):
         from pymongo import MongoClient
         # note fixed import path
-        from entities.ContextClassHarvesters import ContextClassHarvester
         self.mongoclient = mongo_client
         self.depictions = {}
         # temporarily disable until depictions list will be created
         must_load_depictions = False 
-        #must_load_depictions = (entity_type == 'agent') or (entity_type == 'concept') 
         if(must_load_depictions):
             self.load_depictions()
         
@@ -206,8 +205,8 @@ class PreviewBuilder:
                 parent = self.mongoclient.annocultor_db.TermList.find_one({ 'codeUri' : parent_uri})
                 if(parent is not None):
                     upper_geos[parent_uri] = {}
-                    for lang in parent['representation']['prefLabel']:
-                        label = parent['representation']['prefLabel'][lang][0]
+                    for lang in parent[EnrichmentEntity.REPRESENTATION]['prefLabel']:
+                        label = parent[EnrichmentEntity.REPRESENTATION]['prefLabel'][lang][0]
                         upper_geos[parent_uri][lang] = label
             if(len(upper_geos.keys()) > 0): return upper_geos
             return None

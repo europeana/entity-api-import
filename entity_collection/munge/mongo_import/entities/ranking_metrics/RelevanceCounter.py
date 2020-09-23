@@ -4,7 +4,7 @@ import math
 from urllib.parse import quote_plus
 import sqlite3 as slt
 from MetricsRecord import MetricsRecord
-#from MetricsImporter import MetricsImporter
+from EnrichmentEntity import EnrichmentEntity
 
 class RelevanceCounter:
     """
@@ -75,7 +75,7 @@ class RelevanceCounter:
         else:
             # wikipedia_hits is not used anymore
             europeana_enrichment_hits = self.get_enrichment_count(entity_id)
-            europeana_string_hits = self.get_label_count(entity['representation'])
+            europeana_string_hits = self.get_label_count(entity[EnrichmentEntity.REPRESENTATION])
             wikidata_id = self.importer.extract_wikidata_uri(entity)
             #TODO import page rank to DB file
             #TODO use MetricsRecord object

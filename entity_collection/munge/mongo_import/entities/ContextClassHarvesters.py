@@ -2,13 +2,14 @@ import os, sys
 from _sqlite3 import connect
 import datetime
 from preview_builder import PreviewBuilder
-import HarvesterConfig
 from ranking_metrics import RelevanceCounter
 # TODO: Refactor to shrink this method
 import json
 from _struct import error
 import DepictionManager
 from MetricsImporter import MetricsImporter
+from HarvesterConfig import HarvesterConfig
+from EnrichmentEntity import EnrichmentEntity
         
 class LanguageValidator:
 
@@ -75,14 +76,6 @@ class ContextClassHarvester:
     CONFIG_DIR = os.path.join(os.path.dirname(__file__), '..', 'config')
     LANG_VALIDATOR = LanguageValidator()
     
-    DC_IDENTIFIER = 'dc_identifier'
-    ORGANIZATION_DOMAIN = 'organizationDomain'
-    EUROPEANA_ROLE = 'europeanaRole'
-    GEOGRAPHIC_LEVEL = 'geographicLevel'
-    COUNTRY = 'country'
-    
-    REPRESENTATION = 'representation'
-        
     LABEL = 'label'
     TYPE = 'type'
     TYPE_STRING = 'string'
@@ -90,6 +83,8 @@ class ContextClassHarvester:
     LANG_DEF = 'def'
     LANG_EN = 'en'
     
+    IGNORED_PROPS = ['about', '_id', "className"]
+        
     FIELD_MAP = {
         # maps mongo fields to their solr equivalents
         # TODO: there are numerous fields defined in the schema but not 
@@ -106,7 +101,7 @@ class ContextClassHarvester:
         'end' : { LABEL : 'edm_end', TYPE : TYPE_STRING}, 
         'owlSameAs' : { LABEL: 'owl_sameAs' , TYPE : TYPE_REF },
         'edmIsRelatedTo' : { LABEL: 'edm_isRelatedTo' , TYPE : TYPE_REF },
-        'dcIdentifier' : { LABEL: DC_IDENTIFIER , TYPE : TYPE_STRING },
+        'dcIdentifier' : { LABEL: EnrichmentEntity.DC_IDENTIFIER , TYPE : TYPE_STRING },
         'dcDescription' : { LABEL: 'dc_description' , TYPE : TYPE_STRING },
         'rdaGr2DateOfBirth' : { LABEL: 'rdagr2_dateOfBirth' , TYPE : TYPE_STRING },
         #not used yet
@@ -161,13 +156,13 @@ class ContextClassHarvester:
         'foafHomepage' : { LABEL : 'foaf_homepage', TYPE : TYPE_REF},
         'foafPhone' : { LABEL : 'foaf_phone', TYPE : TYPE_STRING},
         'foafMbox' : { LABEL : 'foaf_mbox', TYPE : TYPE_STRING},
-        'edmCountry' : { LABEL : COUNTRY, TYPE : TYPE_STRING},
-        'edmEuropeanaRole' : { LABEL : EUROPEANA_ROLE, TYPE : TYPE_STRING},
-        'edmOrganizationDomain' : { LABEL : ORGANIZATION_DOMAIN, TYPE : TYPE_STRING},
+        'edmCountry' : { LABEL : EnrichmentEntity.COUNTRY, TYPE : TYPE_STRING},
+        'edmEuropeanaRole' : { LABEL : EnrichmentEntity.EUROPEANA_ROLE, TYPE : TYPE_STRING},
+        'edmOrganizationDomain' : { LABEL : EnrichmentEntity.ORGANIZATION_DOMAIN, TYPE : TYPE_STRING},
         #TODO: remove, not supported anymore
         #'edmOrganizationSector' : { 'label' : 'edm_organizationSector', TYPE : TYPE_STRING},
         #'edmOrganizationScope' : { 'label' : 'edm_organizationScope', TYPE : TYPE_STRING},
-        'edmGeographicLevel' : { LABEL : GEOGRAPHIC_LEVEL, TYPE : TYPE_STRING},
+        'edmGeographicLevel' : { LABEL : EnrichmentEntity.GEOGRAPHIC_LEVEL, TYPE : TYPE_STRING},
         'address_about' : { LABEL : 'vcard_hasAddress', TYPE : TYPE_STRING},
         'vcardStreetAddress' : { LABEL : 'vcard_streetAddress', TYPE : TYPE_STRING},
         'vcardLocality' : { LABEL : 'vcard_locality', TYPE : TYPE_STRING },
@@ -200,7 +195,7 @@ class ContextClassHarvester:
         #import PreviewBuilder
         #import HarvesterConfig
         
-        self.config = HarvesterConfig.HarvesterConfig()
+        self.config = HarvesterConfig()
         #TODO: check if entity_class is still needed
         #self.mongo_entity_class = entity_class
         self.name = name
@@ -337,45 +332,48 @@ class ContextClassHarvester:
         if "modified" in entity_rows:
             self.add_field(docroot, "modified", entity_rows["modified"].isoformat()+"Z")
 
+    def is_ignored_property(self, characteristic):
+        return str(characteristic) in self.IGNORED_PROPS
+        
     def process_representation(self, docroot, entity_id, entity):
         #all pref labels
         all_preflabels = []
-        for characteristic in entity[self.REPRESENTATION]:
+        for characteristic in entity[EnrichmentEntity.REPRESENTATION]:
             if(characteristic == "address"):
-                self.process_address(docroot, entity_id, entity[self.REPRESENTATION]['address']['AddressImpl'])
-            elif (str(characteristic) not in ContextClassHarvester.FIELD_MAP.keys() and characteristic != 'about' and characteristic != 'id'):
+                self.process_address(docroot, entity_id, entity[EnrichmentEntity.REPRESENTATION]['address'])
+            elif (str(characteristic) not in ContextClassHarvester.FIELD_MAP.keys()) and not self.is_ignored_property(characteristic):
                 # TODO: log this?
                 print("unmapped property: " + str(characteristic))
                 continue
             # TODO: Refactor horrible conditional
             elif(str(characteristic) == "dcIdentifier"):
-                self.add_field_list(docroot, ContextClassHarvester.DC_IDENTIFIER, entity[self.REPRESENTATION]['dcIdentifier'][self.LANG_DEF])
+                self.add_field_list(docroot, EnrichmentEntity.DC_IDENTIFIER, entity[EnrichmentEntity.REPRESENTATION]['dcIdentifier'][self.LANG_DEF])
             elif(str(characteristic) == "edmOrganizationDomain"):
                 #TODO: create method to add solr field for .en fields
-                self.add_field(docroot, ContextClassHarvester.ORGANIZATION_DOMAIN + "." + self.LANG_EN, entity[self.REPRESENTATION]['edmOrganizationDomain'][self.LANG_EN])
+                self.add_field(docroot, EnrichmentEntity.ORGANIZATION_DOMAIN + "." + self.LANG_EN, entity[EnrichmentEntity.REPRESENTATION]['edmOrganizationDomain'][self.LANG_EN])
             elif(str(characteristic) == "edmEuropeanaRole"): 
                 #multivalued
-                roles = entity[self.REPRESENTATION]['edmEuropeanaRole'][self.LANG_EN]
-                self.add_field_list(docroot, ContextClassHarvester.EUROPEANA_ROLE + "." + self.LANG_EN, roles)
+                roles = entity[EnrichmentEntity.REPRESENTATION]['edmEuropeanaRole'][self.LANG_EN]
+                self.add_field_list(docroot, EnrichmentEntity.EUROPEANA_ROLE + "." + self.LANG_EN, roles)
             elif(str(characteristic) == "edmGeographicLevel"):
-                self.add_field(docroot, ContextClassHarvester.GEOGRAPHIC_LEVEL + "." + self.LANG_EN, entity[self.REPRESENTATION]['edmGeographicLevel'][self.LANG_EN])
+                self.add_field(docroot, EnrichmentEntity.GEOGRAPHIC_LEVEL + "." + self.LANG_EN, entity[EnrichmentEntity.REPRESENTATION]['edmGeographicLevel'][self.LANG_EN])
             elif(str(characteristic) == "edmCountry"):
-                self.add_field(docroot, ContextClassHarvester.COUNTRY, entity[self.REPRESENTATION]['edmCountry'][self.LANG_EN])
+                self.add_field(docroot, EnrichmentEntity.COUNTRY, entity[EnrichmentEntity.REPRESENTATION]['edmCountry'][self.LANG_EN])
             #not supported anymore 
             #elif(str(characteristic) == "edmOrganizationSector"):
-            #    self.add_field(docroot, "edm_organizationSector.en", entity[self.REPRESENTATION]['edmOrganizationSector'][self.LANG_EN])
+            #    self.add_field(docroot, "edm_organizationSector.en", entity[EnrichmentEntity.REPRESENTATION]['edmOrganizationSector'][self.LANG_EN])
             #elif(str(characteristic) == "edmOrganizationScope"):
-            #    self.add_field(docroot, "edm_organizationScope.en", entity[self.REPRESENTATION]['edmOrganizationScope'][self.LANG_EN])            
+            #    self.add_field(docroot, "edm_organizationScope.en", entity[EnrichmentEntity.REPRESENTATION]['edmOrganizationScope'][self.LANG_EN])            
             # if the entry is a dictionary (language map), then the keys should be language codes
-            elif(type(entity[self.REPRESENTATION][characteristic]) is dict):
+            elif(type(entity[EnrichmentEntity.REPRESENTATION][characteristic]) is dict):
                 #for each entry in the language map
-                for lang in entity[self.REPRESENTATION][characteristic]:
+                for lang in entity[EnrichmentEntity.REPRESENTATION][characteristic]:
                     pref_label_count = 0
                     #avoid duplicates when adding values from prefLabel
                     prev_alts = []
                     if(ContextClassHarvester.LANG_VALIDATOR.validate_lang_code(entity_id, lang)):
                         field_name = ContextClassHarvester.FIELD_MAP[characteristic][self.LABEL]
-                        field_values = entity[self.REPRESENTATION][characteristic][lang]
+                        field_values = entity[EnrichmentEntity.REPRESENTATION][characteristic][lang]
                         #property is language map of strings
                         if(type(field_values) == str):
                             unq_name = lang if lang != self.LANG_DEF else ''
@@ -421,18 +419,18 @@ class ContextClassHarvester:
                                 #add field to solr doc
                                 self.add_field(docroot, q_field_name, field_value)                                                          
             #property is list
-            elif(type(entity[self.REPRESENTATION][characteristic]) is list):
+            elif(type(entity[EnrichmentEntity.REPRESENTATION][characteristic]) is list):
                 field_name = ContextClassHarvester.FIELD_MAP[characteristic][self.LABEL]
-                for entry in entity[self.REPRESENTATION][characteristic]:
+                for entry in entity[EnrichmentEntity.REPRESENTATION][characteristic]:
                     self.add_field(docroot, field_name, entry)
             # property is a single value
             else: 
                 try:
                     field_name = ContextClassHarvester.FIELD_MAP[characteristic][self.LABEL]
-                    field_value = entity[self.REPRESENTATION][characteristic]
+                    field_value = entity[EnrichmentEntity.REPRESENTATION][characteristic]
                     self.add_field(docroot, field_name, str(field_value))
                 except KeyError as error:
-                    if("'about'" != str(error) and "'id'" != str(error)):
+                    if( not self.is_ignored_property(characteristic)):
                         print('Attribute found in source but undefined in schema.' + str(error))
                     
         #add suggester payload
@@ -461,8 +459,9 @@ class ContextClassHarvester:
 
     def build_payload(self, entity_id, entity_rows, web_resource):
         #TODO set entity type as class attribute in Harvester
-        entity_type = entity_rows['entityType'].replace('Impl', '')
-        payload = self.preview_builder.build_preview(entity_type, entity_id, entity_rows[self.REPRESENTATION], web_resource)  
+        #entity_type = entity_rows['entityType'].replace('Impl', '')
+        entity_type = entity_rows['entityType'][:-1].lower().capitalize()
+        payload = self.preview_builder.build_preview(entity_type, entity_id, entity_rows[EnrichmentEntity.REPRESENTATION], web_resource)  
         return payload
 
     def add_suggest_filters(self, docroot, enrichtment_hits):
@@ -497,17 +496,17 @@ class ConceptHarvester(ContextClassHarvester):
         self.relevance_counter = RelevanceCounter.ConceptRelevanceCounter(self.importer)
 
     def get_entity_count(self):
-        #entities = self.client.annocultor_db.concept.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/concept/base).*$' }} )
-        entities = self.client.annocultor_db.TermList.find({'entityType': 'ConceptImpl'}).count()
+        #entities = self.client.get_database(DB_ENRICHMENT).concept.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/concept/base).*$' }} )
+        entities = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find({'entityType': 'ConceptImpl'}).count()
         return entities
 
     def build_entity_chunk(self, start):
-        #entities = self.client.annocultor_db.concept.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/concept/base).*$' }} )[start:start + ContextClassHarvester.CHUNK_SIZE]
-        entities = self.client.annocultor_db.TermList.find( {'entityType': 'ConceptImpl'}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
+        #entities = self.client.get_database(DB_ENRICHMENT).concept.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/concept/base).*$' }} )[start:start + ContextClassHarvester.CHUNK_SIZE]
+        entities = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find( {'entityType': 'ConceptImpl'}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
         concepts_chunk = {}
         for concept in entities:
             concept_id = concept['codeUri']
-            concepts_chunk[concept_id] = self.client.annocultor_db.TermList.find_one({ 'codeUri' : concept_id })
+            concepts_chunk[concept_id] = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ 'codeUri' : concept_id })
         return concepts_chunk
 
     def build_entity_doc(self, docroot, entity_id, entity_rows):
@@ -532,20 +531,20 @@ class AgentHarvester(ContextClassHarvester):
         self.relevance_counter = RelevanceCounter.AgentRelevanceCounter(self.importer)
 
     def get_entity_count(self):
-        #agents = self.client.annocultor_db.people.distinct( 'codeUri' )
+        #agents = self.client.get_database(DB_ENRICHMENT).people.distinct( 'codeUri' )
         # TODO: refactor to generic implementation
-        agents = self.client.annocultor_db.TermList.find({'entityType': 'AgentImpl'}).count()
+        agents = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find({'entityType': 'AgentImpl'}).count()
         return agents
 
     def build_entity_chunk(self, start):
-        #agents = self.client.annocultor_db.people.distinct('codeUri')[start:start + ContextClassHarvester.CHUNK_SIZE]
+        #agents = self.client.get_database(DB_ENRICHMENT).people.distinct('codeUri')[start:start + ContextClassHarvester.CHUNK_SIZE]
         # TODO: refactor to generic implementation
-        agents = self.client.annocultor_db.TermList.find( {'entityType': 'AgentImpl'}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
+        agents = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find( {'entityType': 'AgentImpl'}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
         
         agents_chunk = {}
         for agent in agents:
             agent_id = agent['codeUri']
-            agents_chunk[agent_id] = self.client.annocultor_db.TermList.find_one({ 'codeUri' : agent_id })
+            agents_chunk[agent_id] = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ 'codeUri' : agent_id })
         return agents_chunk
 
     def build_entity_doc(self, docroot, entity_id, entity_rows):
@@ -561,7 +560,7 @@ class AgentHarvester(ContextClassHarvester):
         self.process_representation(doc, entity_id, entity_rows)
 
     def log_missing_entry(self, entity_id):
-        msg = "Entity found in Agents but not TermList collection: " + entity_id
+        msg = "Entity found in Agents but not get_collection(COL_ENRICHMENT_TERM) collection: " + entity_id
         logfile = "missing_agents.txt"
         logpath = ContextClassHarvester.LOG_LOCATION + logfile
         with open(logpath, 'a') as lgout:
@@ -579,19 +578,19 @@ class PlaceHarvester(ContextClassHarvester):
         self.relevance_counter = RelevanceCounter.PlaceRelevanceCounter(self.importer)
 
     def get_entity_count(self):
-        #place_list = self.client.annocultor_db.TermList.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/place/).*$' }} )
-        place_count = self.client.annocultor_db.TermList.find( {"entityType": "PlaceImpl"} ).count()
+        #place_list = self.client.get_database(DB_ENRICHMENT).get_collection(COL_ENRICHMENT_TERM).distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/place/).*$' }} )
+        place_count = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find( {"entityType": "PlaceImpl"} ).count()
         return place_count
 
     def build_entity_chunk(self, start):
         #TODO rename variables, places-> entity
-        #places = self.client.annocultor_db.place.distinct('codeUri')[start:start + ContextClassHarvester.CHUNK_SIZE]
-        places = self.client.annocultor_db.TermList.find( {'entityType': 'PlaceImpl'}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
+        #places = self.client.get_database(DB_ENRICHMENT).place.distinct('codeUri')[start:start + ContextClassHarvester.CHUNK_SIZE]
+        places = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find( {'entityType': 'PlaceImpl'}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
         
         places_chunk = {}
         for place in places:
             place_id = place['codeUri']
-            places_chunk[place_id] = self.client.annocultor_db.TermList.find_one({ 'codeUri' : place_id })
+            places_chunk[place_id] = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ 'codeUri' : place_id })
         return places_chunk
 
     def build_entity_doc(self, docroot, entity_id, entity_rows):
@@ -625,17 +624,17 @@ class OrganizationHarvester(ContextClassHarvester):
         return True
     
     def get_entity_count(self):
-        org_count = self.client.annocultor_db.TermList.find( {'entityType': 'OrganizationImpl'} ).count()
+        org_count = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find( {'entityType': 'OrganizationImpl'} ).count()
         print("importing organizations: " + str(org_count))
         return org_count
 
     def build_entity_chunk(self, start):
-        #entities = self.client.annocultor_db.organization.distinct('codeUri')[start:start + ContextClassHarvester.CHUNK_SIZE]
-        entities = self.client.annocultor_db.TermList.find( {'entityType': 'OrganizationImpl'}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
+        #entities = self.client.get_database(DB_ENRICHMENT).organization.distinct('codeUri')[start:start + ContextClassHarvester.CHUNK_SIZE]
+        entities = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find( {'entityType': 'OrganizationImpl'}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
         orgs_chunk = {}
         for entity in entities:
             org_id = entity['codeUri']
-            orgs_chunk[org_id] = self.client.annocultor_db.TermList.find_one({ 'codeUri' : org_id })
+            orgs_chunk[org_id] = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ 'codeUri' : org_id })
         return orgs_chunk
 
     def build_entity_doc(self, docroot, entity_id, entity_rows):
@@ -668,7 +667,7 @@ class IndividualEntityBuilder:
             harvester = ConceptHarvester()
         
         self.client = MongoClient(harvester.get_mongo_host(), harvester.get_mongo_port())
-        entity_rows = self.client.annocultor_db.TermList.find_one({ "codeUri" : entity_id })
+        entity_rows = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ "codeUri" : entity_id })
         entity_chunk = {}
         entity_chunk[entity_id] = entity_rows
         #rawtype = entity_rows['entityType']

@@ -8,10 +8,11 @@
 #
 #=========================================================================#
 
-import requests, json, os, sys, re, time
+import requests, json, os, time
 from pymongo import MongoClient
-import entities.ContextClassHarvesters
 import xml.etree.ElementTree as ET
+from HarvesterConfig import HarvesterConfig
+from ContextClassHarvesters import ContextClassHarvester, IndividualEntityBuilder
 
 SOLR_URI = "http://entity-api.eanadev.org:9292/solr/test/select?wt=json&rows=0&q="
 MONGO_URI = "mongodb://136.243.103.29"
@@ -19,7 +20,7 @@ MONGO_PORT = 27017
 moclient = MongoClient(MONGO_URI, MONGO_PORT)
 # FM (FIELD_MAP) maps Mongo field names to XML @name values
 FM = {}
-for k, v in entities.ContextClassHarvesters.ContextClassHarvester.FIELD_MAP.items():
+for k, v in ContextClassHarvester.FIELD_MAP.items():
     FM[k] = v['label']
 
 # IFM (INVERTED_FIELD_MAP) maps XML @name values to Mongo field names
@@ -56,7 +57,7 @@ class StatusReporter:
 def test_totals():
 
     # checking to make sure all entities successfully imported
-    total_mongo_entities = int(moclient.annocultor_db.TermList.find({}).count())
+    total_mongo_entities = int(moclient.get_database(HarvesterConfig.DB_ENRICHMENT).TermList.find({}).count())
     total_solr_entities = get_solr_total()
     if (total_mongo_entities == total_solr_entities):
         return [StatusReporter("OK", "Test Totals", "All entities", "Totals match: " + str(total_mongo_entities) + " in both datastores")]
@@ -74,7 +75,7 @@ def get_solr_total():
 
 # tests on a couple of entities of each type
 def test_transform():
-    ieb = entities.ContextClassHarvesters.IndividualEntityBuilder()
+    ieb = IndividualEntityBuilder()
     test_entities = [
          "http://data.europeana.eu/agent/base/11241",   # Paris Hilton
          "http://data.europeana.eu/agent/base/146741",  # Leonardo da Vinci
@@ -112,8 +113,8 @@ def test_files_against_mongo(filedir='reference'):
             from_xml[field] = vals
         # ... then of the structure in mongo
         from_mongo = {}
-        mongo_rec = moclient.annocultor_db.TermList.find_one({ 'codeUri' : from_xml['id'][0]})
-        mongo_rep = mongo_rec['representation']
+        mongo_rec = moclient.get_database(HarvesterConfig.DB_ENRICHMENT).TermList.find_one({ 'codeUri' : from_xml['id'][0]})
+        mongo_rep = mongo_rec[ContextClassHarvester.REPRESENTATION]
         for mkey in mongo_rep.keys():
             mval = mongo_rep[mkey]
             if(type(mval) is list):
@@ -242,7 +243,7 @@ def run_test_suite(suppress_stdout=False, log_to_file=False):
 def report_filecount_discrepancy():
     all_mongo_ids = []
     all_solr_ids = []
-    all_records = moclient.annocultor_db.TermList.find({})
+    all_records = moclient.get_database(HarvesterConfig.DB_ENRICHMENT).TermList.find({})
     count = 0
     for record in all_records:
         try:
