@@ -6,4 +6,14 @@ class EnrichmentEntity:
     GEOGRAPHIC_LEVEL = 'geographicLevel'
     COUNTRY = 'country'
     
+    EDM_BEGIN = 'edm_begin'
+    EDM_END = 'edm_end'
+        
     REPRESENTATION = 'contextualEntity'
+
+    TYPE_CONCEPT = "concept"     
+    TYPE_PLACE = "place"     
+    TYPE_TIMESPAN = "timespan"     
+    TYPE_AGENT = "agent"
+    TYPE_ORGANIZATION = "organization"
+    

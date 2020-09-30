@@ -24,10 +24,11 @@ class RelevanceCounter:
     
     URI_MARKUP = 'URI_MARKUP'
     QUERY_ENRICHMENT_HITS = "&q=\"" + URI_MARKUP + "\" AND contentTier:(2 OR 3 OR 4)"
-    AGENT = 'agent'
-    PLACE = 'place'
-    CONCEPT = 'concept'
-    ORGANIZATION = 'organization'
+    #AGENT = 'agent'
+    #PLACE = 'place'
+    #TIMESPAN = 'timespan'
+    #CONCEPT = 'concept'
+    #ORGANIZATION = 'organization'
         
     RANGE_EXTENSION_FACTOR = 10000
      
@@ -235,28 +236,40 @@ class RelevanceCounter:
 class AgentRelevanceCounter(RelevanceCounter):
 
     def __init__(self, importer):
-        RelevanceCounter.__init__(self, self.AGENT)
+        RelevanceCounter.__init__(self, EnrichmentEntity.TYPE_AGENT)
         self.importer = importer
         self.importer.init_database()
 
 class ConceptRelevanceCounter(RelevanceCounter):
 
     def __init__(self, importer):
-        RelevanceCounter.__init__(self, self.CONCEPT)
+        RelevanceCounter.__init__(self, EnrichmentEntity.TYPE_CONCEPT)
         self.importer = importer
         self.importer.init_database()
 
 class PlaceRelevanceCounter(RelevanceCounter):
 
     def __init__(self, importer):
-        RelevanceCounter.__init__(self, self.PLACE)
+        RelevanceCounter.__init__(self, EnrichmentEntity.TYPE_PLACE)
         self.importer = importer
         self.importer.init_database()
+
+class TimespanRelevanceCounter(RelevanceCounter):
+
+    def __init__(self, importer):
+        RelevanceCounter.__init__(self, EnrichmentEntity.TYPE_TIMESPAN)
+        self.importer = importer
+        self.importer.init_database()
+        
+    def get_label_count(self, representation):
+        #numeric values for timespan labels return to many false positives 
+        return 1
+
 
 class OrganizationRelevanceCounter(RelevanceCounter):
 
     def __init__(self, importer):
-        RelevanceCounter.__init__(self, self.ORGANIZATION)
+        RelevanceCounter.__init__(self, EnrichmentEntity.TYPE_ORGANIZATION)
         self.importer = importer
         self.importer.init_database()
 

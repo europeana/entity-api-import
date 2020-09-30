@@ -32,13 +32,15 @@ class MetricsImporter:
 
     DB_CONCEPT = "./db/concept.db"     
     DB_PLACE = "./db/place.db"     
+    DB_TIMESPAN = "./db/timespan.db"     
     DB_AGENT = "./db/agent.db"
     DB_ORGANIZATION = "./db/organization.db"     
 
-    TYPE_CONCEPT = "CONCEPT"     
-    TYPE_PLACE = "PLACE"     
-    TYPE_AGENT = "AGENT"
-    TYPE_ORGANIZATION = "ORGANIZATION"
+    #TYPE_CONCEPT = "CONCEPT"     
+    #TYPE_PLACE = "PLACE"     
+    #TYPE_PLACE = "TYPESPAN"     
+    #TYPE_AGENT = "AGENT"
+    #TYPE_ORGANIZATION = "ORGANIZATION"
      
 
     PR_URI_PREFIX = "http://wikidata.dbpedia.entity/resource/"        
@@ -120,7 +122,7 @@ class MetricsImporter:
     def extract_wikidata_uri(self, entity):
         wikidata_uri = None
         #places do not have the wikidata id in same as
-        if MetricsRecord.PLACE in self.entity_type.lower():
+        if EnrichmentEntity.TYPE_PLACE == self.entity_type:
             wikidata_uri = self.get_wikidata_uri_for_place(entity)        
         else: 
             representation = entity[EnrichmentEntity.REPRESENTATION]

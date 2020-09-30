@@ -21,7 +21,7 @@ class PreviewBuilder:
     def build_preview(self, entity_type, entity_id, entity_rows, web_resource):
         preview_fields = {}
         preview_fields['id'] = entity_id
-        preview_fields['type'] = entity_type
+        preview_fields['type'] = entity_type.capitalize()
         preview_fields['prefLabel'] = self.build_pref_label(entity_rows)
         altLabel = self.build_alt_label(entity_rows)
         if(altLabel is not None):
@@ -35,13 +35,16 @@ class PreviewBuilder:
         if(web_resource):
             preview_fields['isShownBy'] = self.build_isshownby_label(web_resource)
             
-        if(entity_type == "Agent"):
+        #if(entity_type == "Agent"):
+        if(entity_type == EnrichmentEntity.TYPE_AGENT):
             if(self.build_birthdate(entity_rows)): preview_fields['dateOfBirth'] = self.build_birthdate(entity_rows)
             if(self.build_deathdate(entity_rows)): preview_fields['dateOfDeath'] = self.build_deathdate(entity_rows)
             if(self.build_role(entity_rows)): preview_fields['professionOrOccupation'] = self.build_role(entity_rows)
-        elif(entity_type == "Place"):
+        #elif(entity_type == "Place"):
+        elif(entity_type == EnrichmentEntity.TYPE_PLACE):    
             if(self.build_country_label(entity_rows)): preview_fields['isPartOf'] = self.build_country_label(entity_rows)
-        elif(entity_type == "Organization"):
+        #elif(entity_type == "Organization"):
+        elif(entity_type == EnrichmentEntity.TYPE_ORGANIZATION):
             # for some reason the preview data model for multilingual 
             # Organization fields is different from the mulitilingual
             # model elsewhere
@@ -122,7 +125,8 @@ class PreviewBuilder:
         # normalizer/AgentNormalizer.java
         term = self.trim_term(term)
         all_terms = [term]
-        if(entity_type != 'Agent'): # only agents need bibliographic inversion
+        #if(entity_type != 'Agent'): # only agents need bibliographic inversion
+        if(entity_type != EnrichmentEntity.TYPE_AGENT): # only agents need bibliographic inversion
             return all_terms
         elif(' ' not in term): # not possible to invert a single term
             return all_terms
