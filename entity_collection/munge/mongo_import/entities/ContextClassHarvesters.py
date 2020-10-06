@@ -387,7 +387,7 @@ class ContextClassHarvester:
             elif(str(characteristic) == "begin"):
                 #pick first value from default language for timestamps, need to check for agents
                 self.add_field(docroot, EnrichmentEntity.EDM_BEGIN, entity[EnrichmentEntity.REPRESENTATION]['begin'][self.LANG_DEF][0])
-            elif(str(characteristic) == "edm_end"):
+            elif(str(characteristic) == "end"):
                 #pick first value from default language for timestamps, need to check for agents
                 self.add_field(docroot, EnrichmentEntity.EDM_END, entity[EnrichmentEntity.REPRESENTATION]['end'][self.LANG_DEF][0])
             #not supported anymore 
