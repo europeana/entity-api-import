@@ -25,21 +25,21 @@ class MetricsRecord:
             EnrichmentEntity.TYPE_PLACE : 24772,
             EnrichmentEntity.TYPE_CONCEPT : 4055,
             EnrichmentEntity.TYPE_ORGANIZATION : 244,
-            EnrichmentEntity.TYPE_TIMESPAN : 24772
+            EnrichmentEntity.TYPE_TIMESPAN : 3912
             },
         METRIC_ENRICHMENT_HITS : {
             EnrichmentEntity.TYPE_AGENT : 31734,
             EnrichmentEntity.TYPE_PLACE : 3065416,
             EnrichmentEntity.TYPE_CONCEPT : 1448506,
             EnrichmentEntity.TYPE_ORGANIZATION : 1,
-            EnrichmentEntity.TYPE_TIMESPAN : 3065416
+            EnrichmentEntity.TYPE_TIMESPAN : 3383871
             },
         METRIC_TERM_HITS : {
             EnrichmentEntity.TYPE_AGENT : 2297502,
             EnrichmentEntity.TYPE_PLACE : 24576199,
             EnrichmentEntity.TYPE_CONCEPT : 8106790,
             EnrichmentEntity.TYPE_ORGANIZATION : 8977503,
-            EnrichmentEntity.TYPE_TIMESPAN : 24576199
+            EnrichmentEntity.TYPE_TIMESPAN : 1
             }
         }
     
