@@ -10,7 +10,9 @@ class EnrichmentEntity:
     EDM_END = 'edm_end'
         
     REPRESENTATION = 'contextualEntity'
-
+    LANG_DEF = 'def'
+    LANG_EN = 'en'
+    
     TYPE_CONCEPT = "concept"     
     TYPE_PLACE = "place"     
     TYPE_TIMESPAN = "timespan"     

@@ -28,9 +28,9 @@ class LanguageValidator:
     def validate_lang_code(self, entity_id, code):
         if(code in self.langmap.keys()):
             return True
-        elif(code == ContextClassHarvester.LANG_DEF):
+        elif(code == EnrichmentEntity.LANG_DEF):
             # TODO: sort out the 'def' mess at some point
-            self.log_invalid_lang_code(entity_id, ContextClassHarvester.LANG_DEF)
+            self.log_invalid_lang_code(entity_id, EnrichmentEntity.LANG_DEF)
             return True
         elif(code == ''):
             self.log_invalid_lang_code(entity_id, 'Empty string')
@@ -42,7 +42,7 @@ class LanguageValidator:
     def pure_validate_lang_code(self, code):
         if(code in self.langmap.keys()):
             return True
-        elif(code == ContextClassHarvester.LANG_DEF):
+        elif(code == EnrichmentEntity.LANG_DEF):
             return True
         else:
             return False
@@ -80,8 +80,11 @@ class ContextClassHarvester:
     TYPE = 'type'
     TYPE_STRING = 'string'
     TYPE_REF = 'ref'
-    LANG_DEF = 'def'
-    LANG_EN = 'en'
+    
+    #TODO remove when whole code is switched to use the EnrichmentEntity language constants
+    LANG_DEF = EnrichmentEntity.LANG_DEF
+    LANG_EN = EnrichmentEntity.LANG_EN
+    
     
     IGNORED_PROPS = ['about', '_id', "className"]
         
@@ -372,29 +375,29 @@ class ContextClassHarvester:
                 continue
             # TODO: Refactor horrible conditional
             elif(str(characteristic) == "dcIdentifier"):
-                self.add_field_list(docroot, EnrichmentEntity.DC_IDENTIFIER, entity[EnrichmentEntity.REPRESENTATION]['dcIdentifier'][self.LANG_DEF])
+                self.add_field_list(docroot, EnrichmentEntity.DC_IDENTIFIER, entity[EnrichmentEntity.REPRESENTATION]['dcIdentifier'][EnrichmentEntity.LANG_DEF])
             elif(str(characteristic) == "edmOrganizationDomain"):
                 #TODO: create method to add solr field for .en fields
-                self.add_field(docroot, EnrichmentEntity.ORGANIZATION_DOMAIN + "." + self.LANG_EN, entity[EnrichmentEntity.REPRESENTATION]['edmOrganizationDomain'][self.LANG_EN])
+                self.add_field(docroot, EnrichmentEntity.ORGANIZATION_DOMAIN + "." + EnrichmentEntity.LANG_EN, entity[EnrichmentEntity.REPRESENTATION]['edmOrganizationDomain'][EnrichmentEntity.LANG_EN])
             elif(str(characteristic) == "edmEuropeanaRole"): 
                 #multivalued
-                roles = entity[EnrichmentEntity.REPRESENTATION]['edmEuropeanaRole'][self.LANG_EN]
-                self.add_field_list(docroot, EnrichmentEntity.EUROPEANA_ROLE + "." + self.LANG_EN, roles)
+                roles = entity[EnrichmentEntity.REPRESENTATION]['edmEuropeanaRole'][EnrichmentEntity.LANG_EN]
+                self.add_field_list(docroot, EnrichmentEntity.EUROPEANA_ROLE + "." + EnrichmentEntity.LANG_EN, roles)
             elif(str(characteristic) == "edmGeographicLevel"):
-                self.add_field(docroot, EnrichmentEntity.GEOGRAPHIC_LEVEL + "." + self.LANG_EN, entity[EnrichmentEntity.REPRESENTATION]['edmGeographicLevel'][self.LANG_EN])
+                self.add_field(docroot, EnrichmentEntity.GEOGRAPHIC_LEVEL + "." + EnrichmentEntity.LANG_EN, entity[EnrichmentEntity.REPRESENTATION]['edmGeographicLevel'][EnrichmentEntity.LANG_EN])
             elif(str(characteristic) == "edmCountry"):
-                self.add_field(docroot, EnrichmentEntity.COUNTRY, entity[EnrichmentEntity.REPRESENTATION]['edmCountry'][self.LANG_EN])
+                self.add_field(docroot, EnrichmentEntity.COUNTRY, entity[EnrichmentEntity.REPRESENTATION]['edmCountry'][EnrichmentEntity.LANG_EN])
             elif(str(characteristic) == "begin"):
                 #pick first value from default language for timestamps, need to check for agents
-                self.add_field(docroot, EnrichmentEntity.EDM_BEGIN, entity[EnrichmentEntity.REPRESENTATION]['begin'][self.LANG_DEF][0])
+                self.add_field(docroot, EnrichmentEntity.EDM_BEGIN, entity[EnrichmentEntity.REPRESENTATION]['begin'][EnrichmentEntity.LANG_DEF][0])
             elif(str(characteristic) == "end"):
                 #pick first value from default language for timestamps, need to check for agents
-                self.add_field(docroot, EnrichmentEntity.EDM_END, entity[EnrichmentEntity.REPRESENTATION]['end'][self.LANG_DEF][0])
+                self.add_field(docroot, EnrichmentEntity.EDM_END, entity[EnrichmentEntity.REPRESENTATION]['end'][EnrichmentEntity.LANG_DEF][0])
             #not supported anymore 
             #elif(str(characteristic) == "edmOrganizationSector"):
-            #    self.add_field(docroot, "edm_organizationSector.en", entity[EnrichmentEntity.REPRESENTATION]['edmOrganizationSector'][self.LANG_EN])
+            #    self.add_field(docroot, "edm_organizationSector.en", entity[EnrichmentEntity.REPRESENTATION]['edmOrganizationSector'][EnrichmentEntity.LANG_EN])
             #elif(str(characteristic) == "edmOrganizationScope"):
-            #    self.add_field(docroot, "edm_organizationScope.en", entity[EnrichmentEntity.REPRESENTATION]['edmOrganizationScope'][self.LANG_EN])            
+            #    self.add_field(docroot, "edm_organizationScope.en", entity[EnrichmentEntity.REPRESENTATION]['edmOrganizationScope'][EnrichmentEntity.LANG_EN])            
             # if the entry is a dictionary (language map), then the keys should be language codes
             elif(type(entity[EnrichmentEntity.REPRESENTATION][characteristic]) is dict):
                 #for each entry in the language map
@@ -407,17 +410,17 @@ class ContextClassHarvester:
                         field_values = entity[EnrichmentEntity.REPRESENTATION][characteristic][lang]
                         #property is language map of strings
                         if(type(field_values) == str):
-                            unq_name = lang if lang != self.LANG_DEF else ''
-                            q_field_name = field_name + "."+ unq_name
+                            lang_code = lang if lang != EnrichmentEntity.LANG_DEF else ''
+                            q_field_name = field_name + "."+ lang_code
                             #field value = field_values
                             self.add_field(docroot, q_field_name, field_values) 
                         else:
                             #for each value in the list
                             for field_value in field_values:
                                 q_field_name = field_name
-                                unq_name = lang if lang != self.LANG_DEF else ''
+                                lang_code = lang if lang != EnrichmentEntity.LANG_DEF else ''
                                 if(ContextClassHarvester.FIELD_MAP[characteristic][self.TYPE] == self.TYPE_STRING):
-                                    q_field_name = field_name + "."+ unq_name
+                                    q_field_name = field_name + "."+ lang_code
                                 # Code snarl: we often have more than one prefLabel per language in the data
                                 # We can also have altLabels
                                 # We want to shunt all but the first-encountered prefLabel into the altLabel field
@@ -426,7 +429,7 @@ class ContextClassHarvester:
                                 # NOTE: prev_alts are for one language, all_preflabels include labels in any language
                                 if(characteristic == 'prefLabel' and pref_label_count > 0):
                                     #move all additional labels to alt label
-                                    q_field_name = "skos_altLabel." + unq_name
+                                    q_field_name = "skos_altLabel." + lang_code
                                     #SG - TODO: add dropped pref labels to prev_alts??
                                     #prev_alts.append(field_value)
                                 if('altLabel' in q_field_name):
@@ -748,7 +751,13 @@ class IndividualEntityBuilder:
         entity_chunk = {}
         entity_chunk[entity_id] = entity_rows
         #used only for filename generation 
-        start_id = int(entity_id.split("/")[-1])
+        if('semium' in entity_id):
+            ident = entity_id.split("/")[-1];
+            start_id = int(ident.replace('x', '0'))
+            print(start_id)
+        else:
+            start_id = int(entity_id.split("/")[-1])    
+        
         #one_entity
         solrDocFile = harvester.build_solr_doc(entity_chunk, start_id, True)
         return solrDocFile

@@ -18,24 +18,44 @@ class HarvesterTest(unittest.TestCase):
     def test_build_entity_list(self):
         ieb = entities.ContextClassHarvesters.IndividualEntityBuilder()
         test_entities = [
-            "http://data.europeana.eu/agent/base/11241",   # Paris Hilton
-            "http://data.europeana.eu/agent/base/146741",  # Leonardo da Vinci
-            "http://data.europeana.eu/place/base/40360",   # Den Haag
-            "http://data.europeana.eu/place/base/143914",  # Ferrara
+            #"http://data.europeana.eu/agent/base/11241",   # Paris Hilton
+            #"http://data.europeana.eu/agent/base/146741",  # Leonardo da Vinci
+            #"http://data.europeana.eu/place/base/40360",   # Den Haag
+            #"http://data.europeana.eu/place/base/143914",  # Ferrara
             #"http://data.europeana.eu/concept/base/214",   # Neoclassicism
-            "http://data.europeana.eu/concept/base/207",    # Byzantine art
-            "http://data.europeana.eu/organization/1482250000002112001",    # BnF 
-            "http://data.europeana.eu/organization/1482250000004375509", #Deutsches film institute
-            "http://data.europeana.eu/agent/base/178", #agent max page rank: Aristotel
-            "http://data.europeana.eu/place/base/216254", #place max page rank: United States
-            "http://data.europeana.eu/concept/base/83", #concept max page rank: World War I
-            "http://data.europeana.eu/organization/1482250000004505021", #organization max page rank: Internet Archive
-            "http://data.europeana.eu/organization/1482250000004503580",
-            "http://data.europeana.eu/concept/base/1326",#with isShownBy, Minimal-Techno
-            "http://data.europeana.eu/concept/base/1337",#with isShownBy, Pastorale
-            "http://data.europeana.eu/agent/base/100013",#J.R. (music)
-            "http://data.europeana.eu/place/base/41948"#paris
-
+            #"http://data.europeana.eu/concept/base/207",    # Byzantine art
+            #"http://data.europeana.eu/organization/1482250000002112001",    # BnF 
+            #"http://data.europeana.eu/organization/1482250000004375509", #Deutsches film institute
+            #"http://data.europeana.eu/agent/base/178", #agent max page rank: Aristotel
+            #"http://data.europeana.eu/place/base/216254", #place max page rank: United States
+            #"http://data.europeana.eu/concept/base/83", #concept max page rank: World War I
+            #"http://data.europeana.eu/organization/1482250000004505021", #organization max page rank: Internet Archive
+            #"http://data.europeana.eu/organization/1482250000004503580",
+            #"http://data.europeana.eu/concept/base/1326",#with isShownBy, Minimal-Techno
+            #"http://data.europeana.eu/concept/base/1337",#with isShownBy, Pastorale
+            #"http://data.europeana.eu/agent/base/100013",#J.R. (music)
+            #"http://data.europeana.eu/place/base/41948"#paris
+            "http://semium.org/time/00xx",
+            "http://semium.org/time/01xx",
+            "http://semium.org/time/02xx",
+            "http://semium.org/time/03xx",
+            "http://semium.org/time/04xx",
+            "http://semium.org/time/05xx",
+            "http://semium.org/time/06xx",
+            "http://semium.org/time/07xx",
+            "http://semium.org/time/08xx",
+            #"http://semium.org/time/09xx",
+            "http://semium.org/time/10xx",
+            "http://semium.org/time/11xx",
+            "http://semium.org/time/12xx",
+            "http://semium.org/time/13xx",
+            "http://semium.org/time/14xx",
+            "http://semium.org/time/15xx",
+            "http://semium.org/time/16xx",
+            "http://semium.org/time/17xx",
+            "http://semium.org/time/18xx",
+            "http://semium.org/time/19xx",
+            "http://semium.org/time/20xx"
         ]
         for test_entity in test_entities:
             print("building entity: " + test_entity)

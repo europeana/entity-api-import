@@ -66,15 +66,17 @@ class PreviewBuilder:
             
     def build_pref_label(self, entity_rows):
         all_langs = {}
-        for k in entity_rows['prefLabel']:
-            all_langs[k] = entity_rows['prefLabel'][k][0]
+        for lang in entity_rows['prefLabel']:
+            lang_code = lang if lang != EnrichmentEntity.LANG_DEF else ''
+            all_langs[lang_code] = entity_rows['prefLabel'][lang][0]
         return all_langs
 
     def build_alt_label(self, entity_rows):
         all_langs = {}
         if('altLabel' in entity_rows.keys()):
-            for k in entity_rows['altLabel']:
-                all_langs[k] = entity_rows['altLabel'][k]
+            for lang in entity_rows['altLabel']:
+                lang_code = lang if lang != EnrichmentEntity.LANG_DEF else ''
+                all_langs[lang_code] = entity_rows['altLabel'][lang]
         else:
             return None        
         return all_langs
@@ -83,8 +85,9 @@ class PreviewBuilder:
     def build_acronym(self, entity_rows):
         all_langs = {}
         if('edmAcronym' in entity_rows.keys()):
-            for k in entity_rows['edmAcronym']:
-                all_langs[k] = entity_rows['edmAcronym'][k]
+            for lang in entity_rows['edmAcronym']:
+                lang_code = lang if lang != EnrichmentEntity.LANG_DEF else ''
+                all_langs[lang_code] = entity_rows['edmAcronym'][lang]
         else:
             return None        
         return all_langs
@@ -114,8 +117,9 @@ class PreviewBuilder:
     
     def build_max_recall(self, entity_type, entity_rows):
         all_langs = {}
-        for k in entity_rows['prefLabel']:
-            all_langs[k] = self.transpose_terms(entity_type, entity_rows['prefLabel'][k][0])
+        for lang in entity_rows['prefLabel']:
+            lang_code = lang if lang != EnrichmentEntity.LANG_DEF else ''
+            all_langs[lang_code] = self.transpose_terms(entity_type, entity_rows['prefLabel'][lang][0])
         return all_langs
 
     def transpose_terms(self, entity_type, term):
@@ -210,8 +214,9 @@ class PreviewBuilder:
                 if(parent is not None):
                     upper_geos[parent_uri] = {}
                     for lang in parent[EnrichmentEntity.REPRESENTATION]['prefLabel']:
+                        lang_code = lang if lang != EnrichmentEntity.LANG_DEF else ''                
                         label = parent[EnrichmentEntity.REPRESENTATION]['prefLabel'][lang][0]
-                        upper_geos[parent_uri][lang] = label
+                        upper_geos[parent_uri][lang_code] = label
             if(len(upper_geos.keys()) > 0): return upper_geos
             return None
 
