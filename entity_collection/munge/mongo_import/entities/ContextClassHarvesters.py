@@ -129,13 +129,13 @@ class ContextClassHarvester:
         'rdaGr2BiographicalInformation' : { LABEL: 'rdagr2_biographicalInformation' , TYPE : TYPE_STRING },
         'latitude' : { LABEL: 'wgs84_pos_lat' , TYPE : TYPE_STRING },
         'longitude' : { LABEL: 'wgs84_pos_long' , TYPE : TYPE_STRING },
-        'begin' : { LABEL: 'edm_begin' , TYPE : TYPE_STRING },
         #not used yet
         #'beginDate' : { 'label': 'edm_beginDate' , TYPE : TYPE_STRING },
-        'end' : { LABEL: 'edm_end' , TYPE : TYPE_STRING },
         #not used yet
         #'endDate' : { 'label': 'edm_endDate' , TYPE : TYPE_STRING },
         'isPartOf' : { LABEL: 'dcterms_isPartOf' , TYPE : TYPE_REF },
+        #edm_isNextInSequence
+        'isNextInSequence' : { LABEL: 'edm_isNextInSequence' , TYPE : TYPE_REF },
         'hasPart' : { LABEL : 'dcterms_hasPart', TYPE : TYPE_REF},
         'hasMet' : { LABEL : 'edm_hasMet', TYPE : TYPE_REF },
         'date' : { LABEL : 'dc_date', TYPE : TYPE_STRING },

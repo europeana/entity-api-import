@@ -28,6 +28,7 @@ class PreviewBuilder:
             preview_fields['altLabel'] = altLabel
         
         preview_fields['hiddenLabel'] = self.build_max_recall(entity_type, entity_rows)
+            
         #depiction
         depiction = self.build_depiction(entity_id, entity_rows)
         if(depiction):
@@ -43,7 +44,11 @@ class PreviewBuilder:
         #elif(entity_type == "Place"):
         elif(entity_type == EnrichmentEntity.TYPE_PLACE):    
             if(self.build_country_label(entity_rows)): preview_fields['isPartOf'] = self.build_country_label(entity_rows)
-        #elif(entity_type == "Organization"):
+        elif(entity_type == EnrichmentEntity.TYPE_TIMESPAN):
+            if('begin' in entity_rows): 
+                preview_fields['begin'] = entity_rows['begin'][EnrichmentEntity.LANG_DEF][0]
+            if('end' in entity_rows): 
+                preview_fields['end'] = entity_rows['end'][EnrichmentEntity.LANG_DEF][0]    
         elif(entity_type == EnrichmentEntity.TYPE_ORGANIZATION):
             # for some reason the preview data model for multilingual 
             # Organization fields is different from the mulitilingual
