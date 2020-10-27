@@ -35,27 +35,29 @@ class HarvesterTest(unittest.TestCase):
             #"http://data.europeana.eu/concept/base/1337",#with isShownBy, Pastorale
             #"http://data.europeana.eu/agent/base/100013",#J.R. (music)
             #"http://data.europeana.eu/place/base/41948"#paris
-            "http://semium.org/time/00xx",
-            "http://semium.org/time/01xx",
-            "http://semium.org/time/02xx",
-            "http://semium.org/time/03xx",
-            "http://semium.org/time/04xx",
-            "http://semium.org/time/05xx",
-            "http://semium.org/time/06xx",
-            "http://semium.org/time/07xx",
-            "http://semium.org/time/08xx",
-            #"http://semium.org/time/09xx",
-            "http://semium.org/time/10xx",
-            "http://semium.org/time/11xx",
-            "http://semium.org/time/12xx",
-            "http://semium.org/time/13xx",
-            "http://semium.org/time/14xx",
-            "http://semium.org/time/15xx",
-            "http://semium.org/time/16xx",
-            "http://semium.org/time/17xx",
-            "http://semium.org/time/18xx",
-            "http://semium.org/time/19xx",
-            "http://semium.org/time/20xx"
+            "http://data.europeana.eu/timespan/1",
+            "http://data.europeana.eu/timespan/2",
+            "http://data.europeana.eu/timespan/3",
+            "http://data.europeana.eu/timespan/4",
+            "http://data.europeana.eu/timespan/5",
+            "http://data.europeana.eu/timespan/6",
+            "http://data.europeana.eu/timespan/7",
+            "http://data.europeana.eu/timespan/8",
+            "http://data.europeana.eu/timespan/9",
+            "http://data.europeana.eu/timespan/10",
+            "http://data.europeana.eu/timespan/11",
+            "http://data.europeana.eu/timespan/12",
+            "http://data.europeana.eu/timespan/13",
+            "http://data.europeana.eu/timespan/14",
+            "http://data.europeana.eu/timespan/15",
+            "http://data.europeana.eu/timespan/16",
+            "http://data.europeana.eu/timespan/17",
+            "http://data.europeana.eu/timespan/18",
+            "http://data.europeana.eu/timespan/19",
+            "http://data.europeana.eu/timespan/20",
+            "http://data.europeana.eu/timespan/21"
+            
+            
         ]
         for test_entity in test_entities:
             print("building entity: " + test_entity)
