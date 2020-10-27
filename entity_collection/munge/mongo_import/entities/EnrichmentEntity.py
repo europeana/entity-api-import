@@ -14,7 +14,7 @@ class EnrichmentEntity:
     EDM_BEGIN = 'edm_begin'
     EDM_END = 'edm_end'
         
-    REPRESENTATION = 'contextualEntity'
+    REPRESENTATION = 'enrichmentEntity'
     LANG_DEF = 'def'
     LANG_EN = 'en'
     

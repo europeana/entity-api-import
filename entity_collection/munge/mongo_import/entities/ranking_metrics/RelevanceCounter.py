@@ -261,9 +261,9 @@ class TimespanRelevanceCounter(RelevanceCounter):
         self.importer = importer
         self.importer.init_database()
         
-    def get_label_count(self, representation):
+    #def get_label_count(self, representation):
         #numeric values for timespan labels return to many false positives 
-        return 1
+    #    return 1
 
 
 class OrganizationRelevanceCounter(RelevanceCounter):
