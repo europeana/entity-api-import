@@ -13,6 +13,7 @@ from pymongo import MongoClient
 import xml.etree.ElementTree as ET
 from HarvesterConfig import HarvesterConfig
 from ContextClassHarvesters import ContextClassHarvester, IndividualEntityBuilder
+from EnrichmentEntity import EnrichmentEntity
 
 SOLR_URI = "http://entity-api.eanadev.org:9292/solr/test/select?wt=json&rows=0&q="
 MONGO_URI = "mongodb://136.243.103.29"
@@ -113,8 +114,8 @@ def test_files_against_mongo(filedir='reference'):
             from_xml[field] = vals
         # ... then of the structure in mongo
         from_mongo = {}
-        mongo_rec = moclient.get_database(HarvesterConfig.DB_ENRICHMENT).TermList.find_one({ 'codeUri' : from_xml['id'][0]})
-        mongo_rep = mongo_rec[ContextClassHarvester.REPRESENTATION]
+        mongo_rec = moclient.get_database(HarvesterConfig.DB_ENRICHMENT).TermList.find_one({ EnrichmentEntity.ENTITY_ID : from_xml['id'][0]})
+        mongo_rep = mongo_rec[EnrichmentEntity.REPRESENTATION]
         for mkey in mongo_rep.keys():
             mval = mongo_rep[mkey]
             if(type(mval) is list):
@@ -243,11 +244,11 @@ def run_test_suite(suppress_stdout=False, log_to_file=False):
 def report_filecount_discrepancy():
     all_mongo_ids = []
     all_solr_ids = []
-    all_records = moclient.get_database(HarvesterConfig.DB_ENRICHMENT).TermList.find({})
+    all_records = moclient.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find({})
     count = 0
     for record in all_records:
         try:
-            all_mongo_ids.append(record['codeUri'])
+            all_mongo_ids.append(record[EnrichmentEntity.ENTITY][EnrichmentEntity.ABOUT])
         except:
             pass
         count += 1

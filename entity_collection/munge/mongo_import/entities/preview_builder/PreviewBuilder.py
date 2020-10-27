@@ -215,7 +215,7 @@ class PreviewBuilder:
             parents = set([parent_uri for k in entity_rows['isPartOf'].keys() for parent_uri in entity_rows['isPartOf'][k]])
             upper_geos = {}
             for parent_uri in parents:
-                parent = self.mongoclient.annocultor_db.TermList.find_one({ 'codeUri' : parent_uri})
+                parent = self.mongoclient.annocultor_db.TermList.find_one({ EnrichmentEntity.ENTITY_ID : parent_uri})
                 if(parent is not None):
                     upper_geos[parent_uri] = {}
                     for lang in parent[EnrichmentEntity.REPRESENTATION]['prefLabel']:

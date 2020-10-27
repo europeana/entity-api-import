@@ -59,14 +59,14 @@ class RelevanceCounter:
     def fetch_metrics_from_db(self, entity):
             self.db_connect()
             csr = self.db.cursor()
-            entity_id = entity['codeUri']
+            entity_id = entity[EnrichmentEntity.ENTITY][EnrichmentEntity.ABOUT]
             csr.execute("SELECT id, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank FROM hits WHERE id='"+ entity_id + "'")
             return csr.fetchone()
     
     #TODO move method to metric importer        
     def get_raw_relevance_metrics(self, entity):
         first_row = self.fetch_metrics_from_db(entity)
-        entity_id = entity['codeUri']
+        entity_id = entity[EnrichmentEntity.ENTITY][EnrichmentEntity.ABOUT]
         wikipedia_hits = -1 
 
         if(first_row is not None):

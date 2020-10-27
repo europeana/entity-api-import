@@ -91,4 +91,8 @@ class HarvesterTest(unittest.TestCase):
         entity_list = ol.build_entity_chunk(0)
         print("First chunk: 0" + str(len(entity_list)))
           
-        
+    def test_TimespanHarvester(self):
+        ts = entities.ContextClassHarvesters.TimespanHarvester()
+        entity_list = ts.build_entity_chunk(20)
+        print("First chunk: 0" + str(len(entity_list)))
+            

@@ -67,7 +67,7 @@ class MetricsImporter:
     def import_metrics(self, entity=None):
         print("start importing metrics for entity type:" + self.entity_type) 
         
-        entity_id = entity['codeUri']
+        entity_id = entity[EnrichmentEntity.ENTITY][EnrichmentEntity.ABOUT]
         wikidata_id = self.extract_wikidata_uri(entity)
         
         #ensure database is initialized
@@ -112,7 +112,7 @@ class MetricsImporter:
         self.load_wikidata_identifiers_for_places()
         wikidata_id = None
         if (self.wikidata_europeana_mapping is not None):
-            europeana_id = entity['codeUri']
+            europeana_id = entity[EnrichmentEntity.ENTITY][EnrichmentEntity.ABOUT]
             if (europeana_id in self.wikidata_europeana_mapping.keys()):
                 wikidata_id = self.wikidata_europeana_mapping[europeana_id]
         
@@ -197,7 +197,7 @@ class MetricsImporter:
             #build metric records
             for entity in entities:
                 #add to record list
-                entity_id = entity['codeUri']
+                entity_id = entity[EnrichmentEntity.ENTITY][EnrichmentEntity.ABOUT]
                 wikidata_id = self.extract_wikidata_uri(entity)
                 page_rank = 0.0
                 if (wikidata_id in self.pageranks.keys()):
@@ -238,7 +238,7 @@ class MetricsImporter:
     def fetch_metrics(self, entity):
         #if( i == 10):
         #    break
-        entity_id = entity['codeUri']
+        entity_id = entity[EnrichmentEntity.ENTITY][EnrichmentEntity.ABOUT]
         #representation =  entity[ContextClassHarvester.REPRESENTATION]
         #used only for easy record identification
         label = self.extract_def_label(entity)

@@ -1,5 +1,10 @@
 class EnrichmentEntity:
     
+    ENTITY = 'enrichmentEntity'
+    ABOUT = 'about'
+    ENTITY_ID = ENTITY + '.' + ABOUT
+    
+    ENTITY_ID = 'enrichmentEntity.about'
     DC_IDENTIFIER = 'dc_identifier'
     ORGANIZATION_DOMAIN = 'organizationDomain'
     EUROPEANA_ROLE = 'europeanaRole'

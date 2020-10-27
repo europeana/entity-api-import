@@ -218,19 +218,17 @@ class ContextClassHarvester:
         return self.config.get_mongo_port()
     
     def get_entity_count(self):
-        #entities = self.client.get_database(DB_ENRICHMENT).concept.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/concept/base).*$' }} )
-        entities = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find({'entityType': self.entity_type.upper()}).count()
+        entities = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find({'entityType': self.entity_type.upper(), EnrichmentEntity.ENTITY_ID: { '$regex': 'http://data.europeana.eu/.*' }}).count()
         return entities
     
     def build_entity_chunk(self, start):
         #TODO rename variables, places-> entity
-        #places = self.client.get_database(DB_ENRICHMENT).place.distinct('codeUri')[start:start + ContextClassHarvester.CHUNK_SIZE]
-        entities = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find( {'entityType': self.entity_type.upper()}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
+        entities = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find( {'entityType': self.entity_type.upper(), EnrichmentEntity.ENTITY_ID: { '$regex': 'http://data.europeana.eu/.*' }}, {EnrichmentEntity.ENTITY_ID:1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
         
         entities_chunk = {}
         for entity in entities:
-            entity_id = entity['codeUri']
-            entities_chunk[entity_id] = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ 'codeUri' : entity_id })
+            entity_id = entity[EnrichmentEntity.ENTITY][EnrichmentEntity.ABOUT]
+            entities_chunk[entity_id] = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ EnrichmentEntity.ENTITY_ID : entity_id })
         return entities_chunk
     
     def extract_numeric_id(self, entity_id):
@@ -302,9 +300,6 @@ class ContextClassHarvester:
 
     def grab_relevance_ratings(self, docroot, entity_id, entity):
         metrics_record = self.relevance_counter.get_raw_relevance_metrics(entity)
-        #eu_enrichments = hitcounts["europeana_enrichment_hits"]
-        #eu_terms = hitcounts["europeana_string_hits"]
-        #pagerank = hitcounts["pagerank"]
         eu_enrichments = metrics_record.uri_hits
         eu_terms = metrics_record.term_hits
         pagerank = metrics_record.pagerank
@@ -350,9 +345,6 @@ class ContextClassHarvester:
             self.add_field(docroot, field_name, value)
             #address_components.append(v)
 
-        #if(len(address_components) > 0):
-        #    self.add_field(docroot, "vcard_fulladdresskey...", ",".join(address_components))
-
     def process_created_modified_timestamps(self, docroot, entity_rows):
         # Solr time format YYYY-MM-DDThh:mm:ssZ
         if "created" in entity_rows:
@@ -393,12 +385,6 @@ class ContextClassHarvester:
             elif(str(characteristic) == "end"):
                 #pick first value from default language for timestamps, need to check for agents
                 self.add_field(docroot, EnrichmentEntity.EDM_END, entity[EnrichmentEntity.REPRESENTATION]['end'][EnrichmentEntity.LANG_DEF][0])
-            #not supported anymore 
-            #elif(str(characteristic) == "edmOrganizationSector"):
-            #    self.add_field(docroot, "edm_organizationSector.en", entity[EnrichmentEntity.REPRESENTATION]['edmOrganizationSector'][EnrichmentEntity.LANG_EN])
-            #elif(str(characteristic) == "edmOrganizationScope"):
-            #    self.add_field(docroot, "edm_organizationScope.en", entity[EnrichmentEntity.REPRESENTATION]['edmOrganizationScope'][EnrichmentEntity.LANG_EN])            
-            # if the entry is a dictionary (language map), then the keys should be language codes
             elif(type(entity[EnrichmentEntity.REPRESENTATION][characteristic]) is dict):
                 #for each entry in the language map
                 for lang in entity[EnrichmentEntity.REPRESENTATION][characteristic]:
@@ -492,14 +478,10 @@ class ContextClassHarvester:
         return shingled_labels
 
     def build_payload(self, entity_id, entity_rows, web_resource):
-        #TODO set entity type as class attribute in Harvester
-        #entity_type = entity_rows['entityType'].replace('Impl', '')
-        #entity_type = entity_rows['entityType'][:-1].lower().capitalize()
         payload = self.preview_builder.build_preview(self.entity_type, entity_id, entity_rows[EnrichmentEntity.REPRESENTATION], web_resource)  
         return payload
 
     def add_suggest_filters(self, docroot, enrichment_count):
-        #entity_type = self.name[0:len(self.name) - 1].capitalize()
         self.add_field(docroot, 'suggest_filters', self.entity_type.capitalize())
         if(enrichment_count > 0):
             self.add_field(docroot, 'suggest_filters', 'in_europeana')
@@ -529,30 +511,6 @@ class ConceptHarvester(ContextClassHarvester):
         self.importer = MetricsImporter(self, MetricsImporter.DB_CONCEPT, EnrichmentEntity.TYPE_CONCEPT)
         self.relevance_counter = RelevanceCounter.ConceptRelevanceCounter(self.importer)
 
-    #def get_entity_count(self):
-        #entities = self.client.get_database(DB_ENRICHMENT).concept.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/concept/base).*$' }} )
-    #    entities = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find({'entityType': 'ConceptImpl'}).count()
-    #    return entities
-
-    #def build_entity_chunk(self, start):
-        #entities = self.client.get_database(DB_ENRICHMENT).concept.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/concept/base).*$' }} )[start:start + ContextClassHarvester.CHUNK_SIZE]
-    #    entities = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find( {'entityType': 'ConceptImpl'}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
-    #    concepts_chunk = {}
-    #    for concept in entities:
-    #        concept_id = concept['codeUri']
-    #        concepts_chunk[concept_id] = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ 'codeUri' : concept_id })
-    #    return concepts_chunk
-
-    #def build_entity_doc(self, docroot, entity_id, entity_rows):
-    #    #why path change? probably for metrics but that should not happen here
-    #    #sys.path.append('ranking_metrics')
-    #    from xml.etree import ElementTree as ET
-    #    doc = ET.SubElement(docroot, 'doc')
-    #    uri = entity_rows['codeUri']
-    #    self.add_field(doc, 'id', uri)
-    #    self.add_field(doc, 'internal_type', 'Concept')
-    #    self.process_created_modified_timestamps(doc, entity_rows)
-    #    self.process_representation(doc, uri, entity_rows)
 
 class AgentHarvester(ContextClassHarvester):
 
@@ -563,35 +521,6 @@ class AgentHarvester(ContextClassHarvester):
         ContextClassHarvester.__init__(self, EnrichmentEntity.TYPE_AGENT)
         self.importer = MetricsImporter(self, MetricsImporter.DB_AGENT, EnrichmentEntity.TYPE_AGENT)
         self.relevance_counter = RelevanceCounter.AgentRelevanceCounter(self.importer)
-
-    #def get_entity_count(self):
-        #agents = self.client.get_database(DB_ENRICHMENT).people.distinct( 'codeUri' )
-        # TODO: refactor to generic implementation
-    #    agents = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find({'entityType': 'AgentImpl'}).count()
-    #    return agents
-
-    #def build_entity_chunk(self, start):
-        #agents = self.client.get_database(DB_ENRICHMENT).people.distinct('codeUri')[start:start + ContextClassHarvester.CHUNK_SIZE]
-        # TODO: refactor to generic implementation
-    #    agents = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find( {'entityType': 'AgentImpl'}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
-    #    
-    #    agents_chunk = {}
-    #    for agent in agents:
-    #        agent_id = agent['codeUri']
-    #        agents_chunk[agent_id] = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ 'codeUri' : agent_id })
-    #    return agents_chunk
-
-    #def build_entity_doc(self, docroot, entity_id, entity_rows):
-    #    if(entity_rows is None):
-    #        self.log_missing_entry(entity_id)
-    #        return
-    #    #sys.path.append('ranking_metrics')
-    #    from xml.etree import ElementTree as ET
-    #    doc = ET.SubElement(docroot, 'doc')
-    #    self.add_field(doc, 'id', entity_id)
-    #    self.add_field(doc, 'internal_type', 'Agent')
-    #    self.process_created_modified_timestamps(doc, entity_rows)
-    #    self.process_representation(doc, entity_id, entity_rows)
 
     def log_missing_entry(self, entity_id):
         msg = "Entity found in Agents but not get_collection(COL_ENRICHMENT_TERM) collection: " + entity_id
@@ -611,31 +540,6 @@ class PlaceHarvester(ContextClassHarvester):
         self.importer = MetricsImporter(self, MetricsImporter.DB_PLACE, EnrichmentEntity.TYPE_PLACE)
         self.relevance_counter = RelevanceCounter.PlaceRelevanceCounter(self.importer)
 
-    #def get_entity_count(self):
-        #place_list = self.client.get_database(DB_ENRICHMENT).get_collection(COL_ENRICHMENT_TERM).distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/place/).*$' }} )
-    #    place_count = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find( {"entityType": "PlaceImpl"} ).count()
-    #    return place_count
-
-    #def build_entity_chunk(self, start):
-        #TODO rename variables, places-> entity
-        #places = self.client.get_database(DB_ENRICHMENT).place.distinct('codeUri')[start:start + ContextClassHarvester.CHUNK_SIZE]
-    #    places = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find( {'entityType': 'PlaceImpl'}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
-    #    
-    #    places_chunk = {}
-    #    for place in places:
-    #        place_id = place['codeUri']
-    #        places_chunk[place_id] = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ 'codeUri' : place_id })
-    #    return places_chunk
-
-    #def build_entity_doc(self, docroot, entity_id, entity_rows):
-    #    #sys.path.append('ranking_metrics')
-    #    from xml.etree import ElementTree as ET
-    #    doc = ET.SubElement(docroot, 'doc')
-    #    self.add_field(doc, 'id', entity_id)
-    #    self.add_field(doc, 'internal_type', 'Place')
-    #    self.process_created_modified_timestamps(doc, entity_rows)
-    #    self.process_representation(doc, entity_id, entity_rows)
-    
     def grab_isshownby(self, docroot, web_resource):
         #isShownBy not supported for places
         return
@@ -650,31 +554,6 @@ class TimespanHarvester(ContextClassHarvester):
         self.importer = MetricsImporter(self, MetricsImporter.DB_TIMESPAN, EnrichmentEntity.TYPE_TIMESPAN)
         self.relevance_counter = RelevanceCounter.TimespanRelevanceCounter(self.importer)
 
-    #def get_entity_count(self):
-        #place_list = self.client.get_database(DB_ENRICHMENT).get_collection(COL_ENRICHMENT_TERM).distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/place/).*$' }} )
-    #    timespan_count = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find( {"entityType": "PlaceImpl"} ).count()
-    #    return timespan_count
-
-    #def build_entity_chunk(self, start):
-        #TODO rename variables, places-> entity
-        #places = self.client.get_database(DB_ENRICHMENT).place.distinct('codeUri')[start:start + ContextClassHarvester.CHUNK_SIZE]
-        #entities = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find( {'entityType': self.entity_type.upper()}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
-        
-        #entities_chunk = {}
-        #for entity in entities:
-        #    entity_id = entity['codeUri']
-        #    entities_chunk[entity_id] = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ 'codeUri' : entity_id })
-        #return entities_chunk
-
-    #def build_entity_doc(self, docroot, entity_id, entity_rows):
-    #    #sys.path.append('ranking_metrics')
-    #    from xml.etree import ElementTree as ET
-    #    doc = ET.SubElement(docroot, 'doc')
-    #    self.add_field(doc, 'id', entity_id)
-    #    #self.add_field(doc, 'internal_type', 'Place')
-    #    self.add_field(doc, 'internal_type', self.entity_type.capitalize())
-    #    self.process_created_modified_timestamps(doc, entity_rows)
-    #    self.process_representation(doc, entity_id, entity_rows)
     
     def grab_isshownby(self, docroot, web_resource):
         #isShownBy not supported for places
@@ -699,29 +578,6 @@ class OrganizationHarvester(ContextClassHarvester):
     def suggest_by_acronym(self):
         return True
     
-    #def get_entity_count(self):
-    #    org_count = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find( {'entityType': EnrichmentEntity.TYPE_ORGANIZATION.upper()} ).count()
-    #    print("importing organizations: " + str(org_count))
-    #    return org_count
-
-    #def build_entity_chunk(self, start):
-    #    #entities = self.client.get_database(DB_ENRICHMENT).organization.distinct('codeUri')[start:start + ContextClassHarvester.CHUNK_SIZE]
-    #    entities = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find( {'entityType': EnrichmentEntity.TYPE_ORGANIZATION.upper()}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
-    #    orgs_chunk = {}
-    #    for entity in entities:
-    #        org_id = entity['codeUri']
-    #        orgs_chunk[org_id] = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ 'codeUri' : org_id })
-    #    return orgs_chunk
-
-    #def build_entity_doc(self, docroot, entity_id, entity_rows):
-    #    #sys.path.append('ranking_metrics')
-    #    from xml.etree import ElementTree as ET
-    #    doc = ET.SubElement(docroot, 'doc')
-    #    self.add_field(doc, 'id', entity_id)
-    #    self.add_field(doc, 'internal_type', 'Organization')
-    #    self.process_created_modified_timestamps(doc, entity_rows)
-    #    self.process_representation(doc, entity_id, entity_rows)
-
     def grab_isshownby(self, docroot, web_resource):
         #isShownBy not supported for organizations
         return 
@@ -747,7 +603,7 @@ class IndividualEntityBuilder:
             print("unrecognized entity type for uri:" + entity_id)
         
         self.client = MongoClient(harvester.get_mongo_host(), harvester.get_mongo_port())
-        entity_rows = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ "codeUri" : entity_id })
+        entity_rows = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ EnrichmentEntity.ENTITY_ID : entity_id })
         entity_chunk = {}
         entity_chunk[entity_id] = entity_rows
         #used only for filename generation 
@@ -762,20 +618,6 @@ class IndividualEntityBuilder:
         solrDocFile = harvester.build_solr_doc(entity_chunk, start_id, True)
         return solrDocFile
     
-        #solrDocFile = rawtype[0:-4].lower() + "_" + str(start) + ".xml file."
-        #if(not(is_test)): print("Entity " + entity_id + " written to " + solrDocFile)
-        #if(is_test):
-        #    current_location = harvester.get_writepath(start)
-        #    namebits = entity_id.split("/")
-        #    newname = namebits[-3] + "_" + namebits[-1] + ".xml"
-        #    solrDocFile = IndividualEntityBuilder.OUTDIR + "/" + newname
-        #    shutil.copyfile(current_location, solrDocFile)
-        #    os.remove(current_location) # cleaning up
-        #    return solrDocFile
-#        except Exception as e:
-#            print("No entity with that ID found in database. " + str(e))
-#            return
-
 class ChunkBuilder:
 
     def __init__(self, entity_type, start):
