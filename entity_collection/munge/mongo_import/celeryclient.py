@@ -1,6 +1,5 @@
 from celery import group, chain
-from tasks import build_concept_file, build_agent_file, get_concept_count, get_agent_count, get_place_count, build_place_file, get_org_count, build_org_file,\
-    build_timespan_file
+from tasks import build_concept_file, build_agent_file, get_concept_count, get_agent_count, get_place_count, build_place_file, get_org_count, build_org_file, get_timespan_count, build_timespan_file
 import entities.ContextClassHarvesters
 
 chunk_size = entities.ContextClassHarvesters.ContextClassHarvester.CHUNK_SIZE
