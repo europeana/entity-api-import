@@ -1,4 +1,4 @@
-
+from EnrichmentEntity import EnrichmentEntity
 class MetricsRecord:
     """
        Contains definitions for the Europeana-related metrics 
@@ -11,32 +11,35 @@ class MetricsRecord:
     
     #URI_MARKUP = 'URI_MARKUP'
     #QUERY_ENRICHMENT_HITS = "&q=\"" + URI_MARKUP + "\" AND contentTier:(2 OR 3 OR 4)"
-    AGENT = 'agent'
-    PLACE = 'place'
-    CONCEPT = 'concept'
-    ORGANIZATION = 'organization'
+    #AGENT = 'agent'
+    #PLACE = 'place'
+    #CONCEPT = 'concept'
+    #ORGANIZATION = 'organization'
     WIKIDATA_PREFFIX = 'http://www.wikidata.org/entity/'
     WIKIDATA_DBPEDIA_PREFIX = 'http://wikidata.dbpedia.org/resource/'
         
     #wikidata_europeana_mapping = None
     METRIC_MAX_VALS = {
         METRIC_PAGERANK : {
-            AGENT : 1204,
-            PLACE : 24772,
-            CONCEPT : 4055,
-            ORGANIZATION : 244
+            EnrichmentEntity.TYPE_AGENT : 1204,
+            EnrichmentEntity.TYPE_PLACE : 24772,
+            EnrichmentEntity.TYPE_CONCEPT : 4055,
+            EnrichmentEntity.TYPE_ORGANIZATION : 244,
+            EnrichmentEntity.TYPE_TIMESPAN : 3912
             },
         METRIC_ENRICHMENT_HITS : {
-            AGENT : 31734,
-            PLACE : 3065416,
-            CONCEPT : 1448506,
-            ORGANIZATION : 1
+            EnrichmentEntity.TYPE_AGENT : 31734,
+            EnrichmentEntity.TYPE_PLACE : 3065416,
+            EnrichmentEntity.TYPE_CONCEPT : 1448506,
+            EnrichmentEntity.TYPE_ORGANIZATION : 1,
+            EnrichmentEntity.TYPE_TIMESPAN : 1
             },
         METRIC_TERM_HITS : {
-            AGENT : 2297502,
-            PLACE : 24576199,
-            CONCEPT : 8106790,
-            ORGANIZATION : 8977503
+            EnrichmentEntity.TYPE_AGENT : 2297502,
+            EnrichmentEntity.TYPE_PLACE : 24576199,
+            EnrichmentEntity.TYPE_CONCEPT : 8106790,
+            EnrichmentEntity.TYPE_ORGANIZATION : 8977503,
+            EnrichmentEntity.TYPE_TIMESPAN : 6920456
             }
         }
     

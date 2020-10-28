@@ -2,13 +2,14 @@ import os, sys
 from _sqlite3 import connect
 import datetime
 from preview_builder import PreviewBuilder
-import HarvesterConfig
 from ranking_metrics import RelevanceCounter
 # TODO: Refactor to shrink this method
 import json
 from _struct import error
 import DepictionManager
 from MetricsImporter import MetricsImporter
+from HarvesterConfig import HarvesterConfig
+from EnrichmentEntity import EnrichmentEntity
         
 class LanguageValidator:
 
@@ -27,9 +28,9 @@ class LanguageValidator:
     def validate_lang_code(self, entity_id, code):
         if(code in self.langmap.keys()):
             return True
-        elif(code == ContextClassHarvester.LANG_DEF):
+        elif(code == EnrichmentEntity.LANG_DEF):
             # TODO: sort out the 'def' mess at some point
-            self.log_invalid_lang_code(entity_id, ContextClassHarvester.LANG_DEF)
+            self.log_invalid_lang_code(entity_id, EnrichmentEntity.LANG_DEF)
             return True
         elif(code == ''):
             self.log_invalid_lang_code(entity_id, 'Empty string')
@@ -41,7 +42,7 @@ class LanguageValidator:
     def pure_validate_lang_code(self, code):
         if(code in self.langmap.keys()):
             return True
-        elif(code == ContextClassHarvester.LANG_DEF):
+        elif(code == EnrichmentEntity.LANG_DEF):
             return True
         else:
             return False
@@ -75,21 +76,18 @@ class ContextClassHarvester:
     CONFIG_DIR = os.path.join(os.path.dirname(__file__), '..', 'config')
     LANG_VALIDATOR = LanguageValidator()
     
-    DC_IDENTIFIER = 'dc_identifier'
-    ORGANIZATION_DOMAIN = 'organizationDomain'
-    EUROPEANA_ROLE = 'europeanaRole'
-    GEOGRAPHIC_LEVEL = 'geographicLevel'
-    COUNTRY = 'country'
-    
-    REPRESENTATION = 'representation'
-        
     LABEL = 'label'
     TYPE = 'type'
     TYPE_STRING = 'string'
     TYPE_REF = 'ref'
-    LANG_DEF = 'def'
-    LANG_EN = 'en'
     
+    #TODO remove when whole code is switched to use the EnrichmentEntity language constants
+    LANG_DEF = EnrichmentEntity.LANG_DEF
+    LANG_EN = EnrichmentEntity.LANG_EN
+    
+    
+    IGNORED_PROPS = ['about', '_id', "className"]
+        
     FIELD_MAP = {
         # maps mongo fields to their solr equivalents
         # TODO: there are numerous fields defined in the schema but not 
@@ -106,7 +104,7 @@ class ContextClassHarvester:
         'end' : { LABEL : 'edm_end', TYPE : TYPE_STRING}, 
         'owlSameAs' : { LABEL: 'owl_sameAs' , TYPE : TYPE_REF },
         'edmIsRelatedTo' : { LABEL: 'edm_isRelatedTo' , TYPE : TYPE_REF },
-        'dcIdentifier' : { LABEL: DC_IDENTIFIER , TYPE : TYPE_STRING },
+        'dcIdentifier' : { LABEL: EnrichmentEntity.DC_IDENTIFIER , TYPE : TYPE_STRING },
         'dcDescription' : { LABEL: 'dc_description' , TYPE : TYPE_STRING },
         'rdaGr2DateOfBirth' : { LABEL: 'rdagr2_dateOfBirth' , TYPE : TYPE_STRING },
         #not used yet
@@ -131,13 +129,13 @@ class ContextClassHarvester:
         'rdaGr2BiographicalInformation' : { LABEL: 'rdagr2_biographicalInformation' , TYPE : TYPE_STRING },
         'latitude' : { LABEL: 'wgs84_pos_lat' , TYPE : TYPE_STRING },
         'longitude' : { LABEL: 'wgs84_pos_long' , TYPE : TYPE_STRING },
-        'begin' : { LABEL: 'edm_begin' , TYPE : TYPE_STRING },
         #not used yet
         #'beginDate' : { 'label': 'edm_beginDate' , TYPE : TYPE_STRING },
-        'end' : { LABEL: 'edm_end' , TYPE : TYPE_STRING },
         #not used yet
         #'endDate' : { 'label': 'edm_endDate' , TYPE : TYPE_STRING },
         'isPartOf' : { LABEL: 'dcterms_isPartOf' , TYPE : TYPE_REF },
+        #edm_isNextInSequence
+        'isNextInSequence' : { LABEL: 'edm_isNextInSequence' , TYPE : TYPE_REF },
         'hasPart' : { LABEL : 'dcterms_hasPart', TYPE : TYPE_REF},
         'hasMet' : { LABEL : 'edm_hasMet', TYPE : TYPE_REF },
         'date' : { LABEL : 'dc_date', TYPE : TYPE_STRING },
@@ -161,13 +159,13 @@ class ContextClassHarvester:
         'foafHomepage' : { LABEL : 'foaf_homepage', TYPE : TYPE_REF},
         'foafPhone' : { LABEL : 'foaf_phone', TYPE : TYPE_STRING},
         'foafMbox' : { LABEL : 'foaf_mbox', TYPE : TYPE_STRING},
-        'edmCountry' : { LABEL : COUNTRY, TYPE : TYPE_STRING},
-        'edmEuropeanaRole' : { LABEL : EUROPEANA_ROLE, TYPE : TYPE_STRING},
-        'edmOrganizationDomain' : { LABEL : ORGANIZATION_DOMAIN, TYPE : TYPE_STRING},
+        'edmCountry' : { LABEL : EnrichmentEntity.COUNTRY, TYPE : TYPE_STRING},
+        'edmEuropeanaRole' : { LABEL : EnrichmentEntity.EUROPEANA_ROLE, TYPE : TYPE_STRING},
+        'edmOrganizationDomain' : { LABEL : EnrichmentEntity.ORGANIZATION_DOMAIN, TYPE : TYPE_STRING},
         #TODO: remove, not supported anymore
         #'edmOrganizationSector' : { 'label' : 'edm_organizationSector', TYPE : TYPE_STRING},
         #'edmOrganizationScope' : { 'label' : 'edm_organizationScope', TYPE : TYPE_STRING},
-        'edmGeographicLevel' : { LABEL : GEOGRAPHIC_LEVEL, TYPE : TYPE_STRING},
+        'edmGeographicLevel' : { LABEL : EnrichmentEntity.GEOGRAPHIC_LEVEL, TYPE : TYPE_STRING},
         'address_about' : { LABEL : 'vcard_hasAddress', TYPE : TYPE_STRING},
         'vcardStreetAddress' : { LABEL : 'vcard_streetAddress', TYPE : TYPE_STRING},
         'vcardLocality' : { LABEL : 'vcard_locality', TYPE : TYPE_STRING },
@@ -191,7 +189,7 @@ class ContextClassHarvester:
 
     # TODO: add address processing
 
-    def __init__(self, name):
+    def __init__(self, entity_type):
         sys.path.append(os.path.join(os.path.dirname(__file__)))
         sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
         sys.path.append(os.path.join(os.path.dirname(__file__), 'preview_builder'))
@@ -200,15 +198,14 @@ class ContextClassHarvester:
         #import PreviewBuilder
         #import HarvesterConfig
         
-        self.config = HarvesterConfig.HarvesterConfig()
-        #TODO: check if entity_class is still needed
-        #self.mongo_entity_class = entity_class
-        self.name = name
+        self.config = HarvesterConfig()
+        #TODO: remove field name and use entity type
+        self.name = entity_type + 's'
         self.client = MongoClient(self.get_mongo_host(), self.get_mongo_port())
         self.ranking_model = self.config.get_relevance_ranking_model()
         self.write_dir = ContextClassHarvester.WRITEDIR + "/" + self.ranking_model
         #TODO create working dir here, including folders for individual entities and organization type
-        entity_type = name[:-1]
+        self.entity_type = entity_type
         self.preview_builder = PreviewBuilder.PreviewBuilder(self.client, entity_type)
         self.depiction_manager = DepictionManager.DepictionManager(self.config)
         
@@ -219,6 +216,20 @@ class ContextClassHarvester:
     def get_mongo_port (self):
         #return default mongo port, the subclasses may use the type based config (e.g. see also organizations host)
         return self.config.get_mongo_port()
+    
+    def get_entity_count(self):
+        entities = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find({'entityType': self.entity_type.upper(), EnrichmentEntity.ENTITY_ID: { '$regex': 'http://data.europeana.eu/.*' }}).count()
+        return entities
+    
+    def build_entity_chunk(self, start):
+        #TODO rename variables, places-> entity
+        entities = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find( {'entityType': self.entity_type.upper(), EnrichmentEntity.ENTITY_ID: { '$regex': 'http://data.europeana.eu/.*' }}, {EnrichmentEntity.ENTITY_ID:1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
+        
+        entities_chunk = {}
+        for entity in entities:
+            entity_id = entity[EnrichmentEntity.ENTITY][EnrichmentEntity.ABOUT]
+            entities_chunk[entity_id] = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ EnrichmentEntity.ENTITY_ID : entity_id })
+        return entities_chunk
     
     def extract_numeric_id(self, entity_id):
         parts = entity_id.split("/")
@@ -235,6 +246,16 @@ class ContextClassHarvester:
         self.client.close()
         return self.write_to_file(docroot, start, one_entity)
         
+    def build_entity_doc(self, docroot, entity_id, entity_rows):
+        #sys.path.append('ranking_metrics')
+        from xml.etree import ElementTree as ET
+        doc = ET.SubElement(docroot, 'doc')
+        self.add_field(doc, 'id', entity_id)
+        #self.add_field(doc, 'internal_type', 'Place')
+        self.add_field(doc, 'internal_type', self.entity_type.capitalize())
+        self.process_created_modified_timestamps(doc, entity_rows)
+        self.process_representation(doc, entity_id, entity_rows)
+    
 
     def add_field_list(self, docroot, field_name, values):
         if(values is None):
@@ -279,9 +300,6 @@ class ContextClassHarvester:
 
     def grab_relevance_ratings(self, docroot, entity_id, entity):
         metrics_record = self.relevance_counter.get_raw_relevance_metrics(entity)
-        #eu_enrichments = hitcounts["europeana_enrichment_hits"]
-        #eu_terms = hitcounts["europeana_string_hits"]
-        #pagerank = hitcounts["pagerank"]
         eu_enrichments = metrics_record.uri_hits
         eu_terms = metrics_record.term_hits
         pagerank = metrics_record.pagerank
@@ -327,9 +345,6 @@ class ContextClassHarvester:
             self.add_field(docroot, field_name, value)
             #address_components.append(v)
 
-        #if(len(address_components) > 0):
-        #    self.add_field(docroot, "vcard_fulladdresskey...", ",".join(address_components))
-
     def process_created_modified_timestamps(self, docroot, entity_rows):
         # Solr time format YYYY-MM-DDThh:mm:ssZ
         if "created" in entity_rows:
@@ -337,58 +352,61 @@ class ContextClassHarvester:
         if "modified" in entity_rows:
             self.add_field(docroot, "modified", entity_rows["modified"].isoformat()+"Z")
 
+    def is_ignored_property(self, characteristic):
+        return str(characteristic) in self.IGNORED_PROPS
+        
     def process_representation(self, docroot, entity_id, entity):
         #all pref labels
         all_preflabels = []
-        for characteristic in entity[self.REPRESENTATION]:
+        for characteristic in entity[EnrichmentEntity.REPRESENTATION]:
             if(characteristic == "address"):
-                self.process_address(docroot, entity_id, entity[self.REPRESENTATION]['address']['AddressImpl'])
-            elif (str(characteristic) not in ContextClassHarvester.FIELD_MAP.keys() and characteristic != 'about' and characteristic != 'id'):
+                self.process_address(docroot, entity_id, entity[EnrichmentEntity.REPRESENTATION]['address'])
+            elif (str(characteristic) not in ContextClassHarvester.FIELD_MAP.keys()) and not self.is_ignored_property(characteristic):
                 # TODO: log this?
                 print("unmapped property: " + str(characteristic))
                 continue
             # TODO: Refactor horrible conditional
             elif(str(characteristic) == "dcIdentifier"):
-                self.add_field_list(docroot, ContextClassHarvester.DC_IDENTIFIER, entity[self.REPRESENTATION]['dcIdentifier'][self.LANG_DEF])
+                self.add_field_list(docroot, EnrichmentEntity.DC_IDENTIFIER, entity[EnrichmentEntity.REPRESENTATION]['dcIdentifier'][EnrichmentEntity.LANG_DEF])
             elif(str(characteristic) == "edmOrganizationDomain"):
                 #TODO: create method to add solr field for .en fields
-                self.add_field(docroot, ContextClassHarvester.ORGANIZATION_DOMAIN + "." + self.LANG_EN, entity[self.REPRESENTATION]['edmOrganizationDomain'][self.LANG_EN])
+                self.add_field(docroot, EnrichmentEntity.ORGANIZATION_DOMAIN + "." + EnrichmentEntity.LANG_EN, entity[EnrichmentEntity.REPRESENTATION]['edmOrganizationDomain'][EnrichmentEntity.LANG_EN])
             elif(str(characteristic) == "edmEuropeanaRole"): 
                 #multivalued
-                roles = entity[self.REPRESENTATION]['edmEuropeanaRole'][self.LANG_EN]
-                self.add_field_list(docroot, ContextClassHarvester.EUROPEANA_ROLE + "." + self.LANG_EN, roles)
+                roles = entity[EnrichmentEntity.REPRESENTATION]['edmEuropeanaRole'][EnrichmentEntity.LANG_EN]
+                self.add_field_list(docroot, EnrichmentEntity.EUROPEANA_ROLE + "." + EnrichmentEntity.LANG_EN, roles)
             elif(str(characteristic) == "edmGeographicLevel"):
-                self.add_field(docroot, ContextClassHarvester.GEOGRAPHIC_LEVEL + "." + self.LANG_EN, entity[self.REPRESENTATION]['edmGeographicLevel'][self.LANG_EN])
+                self.add_field(docroot, EnrichmentEntity.GEOGRAPHIC_LEVEL + "." + EnrichmentEntity.LANG_EN, entity[EnrichmentEntity.REPRESENTATION]['edmGeographicLevel'][EnrichmentEntity.LANG_EN])
             elif(str(characteristic) == "edmCountry"):
-                self.add_field(docroot, ContextClassHarvester.COUNTRY, entity[self.REPRESENTATION]['edmCountry'][self.LANG_EN])
-            #not supported anymore 
-            #elif(str(characteristic) == "edmOrganizationSector"):
-            #    self.add_field(docroot, "edm_organizationSector.en", entity[self.REPRESENTATION]['edmOrganizationSector'][self.LANG_EN])
-            #elif(str(characteristic) == "edmOrganizationScope"):
-            #    self.add_field(docroot, "edm_organizationScope.en", entity[self.REPRESENTATION]['edmOrganizationScope'][self.LANG_EN])            
-            # if the entry is a dictionary (language map), then the keys should be language codes
-            elif(type(entity[self.REPRESENTATION][characteristic]) is dict):
+                self.add_field(docroot, EnrichmentEntity.COUNTRY, entity[EnrichmentEntity.REPRESENTATION]['edmCountry'][EnrichmentEntity.LANG_EN])
+            elif(str(characteristic) == "begin"):
+                #pick first value from default language for timestamps, need to check for agents
+                self.add_field(docroot, EnrichmentEntity.EDM_BEGIN, entity[EnrichmentEntity.REPRESENTATION]['begin'][EnrichmentEntity.LANG_DEF][0])
+            elif(str(characteristic) == "end"):
+                #pick first value from default language for timestamps, need to check for agents
+                self.add_field(docroot, EnrichmentEntity.EDM_END, entity[EnrichmentEntity.REPRESENTATION]['end'][EnrichmentEntity.LANG_DEF][0])
+            elif(type(entity[EnrichmentEntity.REPRESENTATION][characteristic]) is dict):
                 #for each entry in the language map
-                for lang in entity[self.REPRESENTATION][characteristic]:
+                for lang in entity[EnrichmentEntity.REPRESENTATION][characteristic]:
                     pref_label_count = 0
                     #avoid duplicates when adding values from prefLabel
                     prev_alts = []
                     if(ContextClassHarvester.LANG_VALIDATOR.validate_lang_code(entity_id, lang)):
                         field_name = ContextClassHarvester.FIELD_MAP[characteristic][self.LABEL]
-                        field_values = entity[self.REPRESENTATION][characteristic][lang]
+                        field_values = entity[EnrichmentEntity.REPRESENTATION][characteristic][lang]
                         #property is language map of strings
                         if(type(field_values) == str):
-                            unq_name = lang if lang != self.LANG_DEF else ''
-                            q_field_name = field_name + "."+ unq_name
+                            lang_code = lang if lang != EnrichmentEntity.LANG_DEF else ''
+                            q_field_name = field_name + "."+ lang_code
                             #field value = field_values
                             self.add_field(docroot, q_field_name, field_values) 
                         else:
                             #for each value in the list
                             for field_value in field_values:
                                 q_field_name = field_name
-                                unq_name = lang if lang != self.LANG_DEF else ''
+                                lang_code = lang if lang != EnrichmentEntity.LANG_DEF else ''
                                 if(ContextClassHarvester.FIELD_MAP[characteristic][self.TYPE] == self.TYPE_STRING):
-                                    q_field_name = field_name + "."+ unq_name
+                                    q_field_name = field_name + "."+ lang_code
                                 # Code snarl: we often have more than one prefLabel per language in the data
                                 # We can also have altLabels
                                 # We want to shunt all but the first-encountered prefLabel into the altLabel field
@@ -397,7 +415,7 @@ class ContextClassHarvester:
                                 # NOTE: prev_alts are for one language, all_preflabels include labels in any language
                                 if(characteristic == 'prefLabel' and pref_label_count > 0):
                                     #move all additional labels to alt label
-                                    q_field_name = "skos_altLabel." + unq_name
+                                    q_field_name = "skos_altLabel." + lang_code
                                     #SG - TODO: add dropped pref labels to prev_alts??
                                     #prev_alts.append(field_value)
                                 if('altLabel' in q_field_name):
@@ -421,18 +439,18 @@ class ContextClassHarvester:
                                 #add field to solr doc
                                 self.add_field(docroot, q_field_name, field_value)                                                          
             #property is list
-            elif(type(entity[self.REPRESENTATION][characteristic]) is list):
+            elif(type(entity[EnrichmentEntity.REPRESENTATION][characteristic]) is list):
                 field_name = ContextClassHarvester.FIELD_MAP[characteristic][self.LABEL]
-                for entry in entity[self.REPRESENTATION][characteristic]:
+                for entry in entity[EnrichmentEntity.REPRESENTATION][characteristic]:
                     self.add_field(docroot, field_name, entry)
             # property is a single value
             else: 
                 try:
                     field_name = ContextClassHarvester.FIELD_MAP[characteristic][self.LABEL]
-                    field_value = entity[self.REPRESENTATION][characteristic]
+                    field_value = entity[EnrichmentEntity.REPRESENTATION][characteristic]
                     self.add_field(docroot, field_name, str(field_value))
                 except KeyError as error:
-                    if("'about'" != str(error) and "'id'" != str(error)):
+                    if( not self.is_ignored_property(characteristic)):
                         print('Attribute found in source but undefined in schema.' + str(error))
                     
         #add suggester payload
@@ -460,15 +478,12 @@ class ContextClassHarvester:
         return shingled_labels
 
     def build_payload(self, entity_id, entity_rows, web_resource):
-        #TODO set entity type as class attribute in Harvester
-        entity_type = entity_rows['entityType'].replace('Impl', '')
-        payload = self.preview_builder.build_preview(entity_type, entity_id, entity_rows[self.REPRESENTATION], web_resource)  
+        payload = self.preview_builder.build_preview(self.entity_type, entity_id, entity_rows[EnrichmentEntity.REPRESENTATION], web_resource)  
         return payload
 
-    def add_suggest_filters(self, docroot, enrichtment_hits):
-        entity_type = self.name[0:len(self.name) - 1].capitalize()
-        self.add_field(docroot, 'suggest_filters', entity_type)
-        if(enrichtment_hits > 0):
+    def add_suggest_filters(self, docroot, enrichment_count):
+        self.add_field(docroot, 'suggest_filters', self.entity_type.capitalize())
+        if(enrichment_count > 0):
             self.add_field(docroot, 'suggest_filters', 'in_europeana')
     
     def suggest_by_alt_label(self):
@@ -491,77 +506,24 @@ class ContextClassHarvester:
 class ConceptHarvester(ContextClassHarvester):
 
     def __init__(self):
-        ContextClassHarvester.__init__(self, 'concepts')
-        sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
-        self.importer = MetricsImporter(self, MetricsImporter.DB_CONCEPT, MetricsImporter.TYPE_CONCEPT)
+        ContextClassHarvester.__init__(self, EnrichmentEntity.TYPE_CONCEPT)
+        #sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
+        self.importer = MetricsImporter(self, MetricsImporter.DB_CONCEPT, EnrichmentEntity.TYPE_CONCEPT)
         self.relevance_counter = RelevanceCounter.ConceptRelevanceCounter(self.importer)
 
-    def get_entity_count(self):
-        #entities = self.client.annocultor_db.concept.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/concept/base).*$' }} )
-        entities = self.client.annocultor_db.TermList.find({'entityType': 'ConceptImpl'}).count()
-        return entities
-
-    def build_entity_chunk(self, start):
-        #entities = self.client.annocultor_db.concept.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/concept/base).*$' }} )[start:start + ContextClassHarvester.CHUNK_SIZE]
-        entities = self.client.annocultor_db.TermList.find( {'entityType': 'ConceptImpl'}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
-        concepts_chunk = {}
-        for concept in entities:
-            concept_id = concept['codeUri']
-            concepts_chunk[concept_id] = self.client.annocultor_db.TermList.find_one({ 'codeUri' : concept_id })
-        return concepts_chunk
-
-    def build_entity_doc(self, docroot, entity_id, entity_rows):
-        #why path change? probably for metrics but that should not happen here
-        sys.path.append('ranking_metrics')
-        from xml.etree import ElementTree as ET
-        doc = ET.SubElement(docroot, 'doc')
-        uri = entity_rows['codeUri']
-        self.add_field(doc, 'id', uri)
-        self.add_field(doc, 'internal_type', 'Concept')
-        self.process_created_modified_timestamps(doc, entity_rows)
-        self.process_representation(doc, uri, entity_rows)
 
 class AgentHarvester(ContextClassHarvester):
 
     def __init__(self):
-        sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
+        #sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
         # TODO check if 'eu.europeana.corelib.solr.entity.AgentImpl' is correct and needed (see entityType column in the database)
         #ContextClassHarvester.__init__(self, 'agents', 'eu.europeana.corelib.solr.entity.AgentImpl')
-        ContextClassHarvester.__init__(self, 'agents')
-        self.importer = MetricsImporter(self, MetricsImporter.DB_AGENT, MetricsImporter.TYPE_AGENT)
+        ContextClassHarvester.__init__(self, EnrichmentEntity.TYPE_AGENT)
+        self.importer = MetricsImporter(self, MetricsImporter.DB_AGENT, EnrichmentEntity.TYPE_AGENT)
         self.relevance_counter = RelevanceCounter.AgentRelevanceCounter(self.importer)
 
-    def get_entity_count(self):
-        #agents = self.client.annocultor_db.people.distinct( 'codeUri' )
-        # TODO: refactor to generic implementation
-        agents = self.client.annocultor_db.TermList.find({'entityType': 'AgentImpl'}).count()
-        return agents
-
-    def build_entity_chunk(self, start):
-        #agents = self.client.annocultor_db.people.distinct('codeUri')[start:start + ContextClassHarvester.CHUNK_SIZE]
-        # TODO: refactor to generic implementation
-        agents = self.client.annocultor_db.TermList.find( {'entityType': 'AgentImpl'}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
-        
-        agents_chunk = {}
-        for agent in agents:
-            agent_id = agent['codeUri']
-            agents_chunk[agent_id] = self.client.annocultor_db.TermList.find_one({ 'codeUri' : agent_id })
-        return agents_chunk
-
-    def build_entity_doc(self, docroot, entity_id, entity_rows):
-        if(entity_rows is None):
-            self.log_missing_entry(entity_id)
-            return
-        sys.path.append('ranking_metrics')
-        from xml.etree import ElementTree as ET
-        doc = ET.SubElement(docroot, 'doc')
-        self.add_field(doc, 'id', entity_id)
-        self.add_field(doc, 'internal_type', 'Agent')
-        self.process_created_modified_timestamps(doc, entity_rows)
-        self.process_representation(doc, entity_id, entity_rows)
-
     def log_missing_entry(self, entity_id):
-        msg = "Entity found in Agents but not TermList collection: " + entity_id
+        msg = "Entity found in Agents but not get_collection(COL_ENRICHMENT_TERM) collection: " + entity_id
         logfile = "missing_agents.txt"
         logpath = ContextClassHarvester.LOG_LOCATION + logfile
         with open(logpath, 'a') as lgout:
@@ -571,48 +533,40 @@ class AgentHarvester(ContextClassHarvester):
 class PlaceHarvester(ContextClassHarvester):
 
     def __init__(self):
-        sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
+        #sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
         #TODO: check if 'eu.europeana.corelib.solr.entity.PlaceImpl' still needed/used
         #ContextClassHarvester.__init__(self, 'places', 'eu.europeana.corelib.solr.entity.PlaceImpl')
-        ContextClassHarvester.__init__(self, 'places')
-        self.importer = MetricsImporter(self, MetricsImporter.DB_PLACE, MetricsImporter.TYPE_PLACE)
+        ContextClassHarvester.__init__(self, EnrichmentEntity.TYPE_PLACE)
+        self.importer = MetricsImporter(self, MetricsImporter.DB_PLACE, EnrichmentEntity.TYPE_PLACE)
         self.relevance_counter = RelevanceCounter.PlaceRelevanceCounter(self.importer)
 
-    def get_entity_count(self):
-        #place_list = self.client.annocultor_db.TermList.distinct( 'codeUri', { 'codeUri': {'$regex': '^(http://data\.europeana\.eu/place/).*$' }} )
-        place_count = self.client.annocultor_db.TermList.find( {"entityType": "PlaceImpl"} ).count()
-        return place_count
+    def grab_isshownby(self, docroot, web_resource):
+        #isShownBy not supported for places
+        return
 
-    def build_entity_chunk(self, start):
-        #TODO rename variables, places-> entity
-        #places = self.client.annocultor_db.place.distinct('codeUri')[start:start + ContextClassHarvester.CHUNK_SIZE]
-        places = self.client.annocultor_db.TermList.find( {'entityType': 'PlaceImpl'}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
-        
-        places_chunk = {}
-        for place in places:
-            place_id = place['codeUri']
-            places_chunk[place_id] = self.client.annocultor_db.TermList.find_one({ 'codeUri' : place_id })
-        return places_chunk
+class TimespanHarvester(ContextClassHarvester):
 
-    def build_entity_doc(self, docroot, entity_id, entity_rows):
-        sys.path.append('ranking_metrics')
-        from xml.etree import ElementTree as ET
-        doc = ET.SubElement(docroot, 'doc')
-        self.add_field(doc, 'id', entity_id)
-        self.add_field(doc, 'internal_type', 'Place')
-        self.process_created_modified_timestamps(doc, entity_rows)
-        self.process_representation(doc, entity_id, entity_rows)
+    def __init__(self):
+        #sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
+        #TODO: check if 'eu.europeana.corelib.solr.entity.PlaceImpl' still needed/used
+        #ContextClassHarvester.__init__(self, 'places', 'eu.europeana.corelib.solr.entity.PlaceImpl')
+        ContextClassHarvester.__init__(self, EnrichmentEntity.TYPE_TIMESPAN)
+        self.importer = MetricsImporter(self, MetricsImporter.DB_TIMESPAN, EnrichmentEntity.TYPE_TIMESPAN)
+        self.relevance_counter = RelevanceCounter.TimespanRelevanceCounter(self.importer)
+
     
     def grab_isshownby(self, docroot, web_resource):
         #isShownBy not supported for places
         return
 
+
+
 class OrganizationHarvester(ContextClassHarvester):
 
     def __init__(self):
-        ContextClassHarvester.__init__(self, 'organizations')
-        sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
-        self.importer = MetricsImporter(self, MetricsImporter.DB_ORGANIZATION, MetricsImporter.TYPE_ORGANIZATION)        
+        ContextClassHarvester.__init__(self, EnrichmentEntity.TYPE_ORGANIZATION)
+        #sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
+        self.importer = MetricsImporter(self, MetricsImporter.DB_ORGANIZATION, EnrichmentEntity.TYPE_ORGANIZATION)        
         self.relevance_counter = RelevanceCounter.OrganizationRelevanceCounter(self.importer)
 
     def get_mongo_host (self):
@@ -624,29 +578,6 @@ class OrganizationHarvester(ContextClassHarvester):
     def suggest_by_acronym(self):
         return True
     
-    def get_entity_count(self):
-        org_count = self.client.annocultor_db.TermList.find( {'entityType': 'OrganizationImpl'} ).count()
-        print("importing organizations: " + str(org_count))
-        return org_count
-
-    def build_entity_chunk(self, start):
-        #entities = self.client.annocultor_db.organization.distinct('codeUri')[start:start + ContextClassHarvester.CHUNK_SIZE]
-        entities = self.client.annocultor_db.TermList.find( {'entityType': 'OrganizationImpl'}, {'codeUri':1, '_id': 0})[start:start + ContextClassHarvester.CHUNK_SIZE]
-        orgs_chunk = {}
-        for entity in entities:
-            org_id = entity['codeUri']
-            orgs_chunk[org_id] = self.client.annocultor_db.TermList.find_one({ 'codeUri' : org_id })
-        return orgs_chunk
-
-    def build_entity_doc(self, docroot, entity_id, entity_rows):
-        sys.path.append('ranking_metrics')
-        from xml.etree import ElementTree as ET
-        doc = ET.SubElement(docroot, 'doc')
-        self.add_field(doc, 'id', entity_id)
-        self.add_field(doc, 'internal_type', 'Organization')
-        self.process_created_modified_timestamps(doc, entity_rows)
-        self.process_representation(doc, entity_id, entity_rows)
-
     def grab_isshownby(self, docroot, web_resource):
         #isShownBy not supported for organizations
         return 
@@ -664,49 +595,50 @@ class IndividualEntityBuilder:
             harvester = AgentHarvester()
         elif(entity_id.find("/organization/") > 0):
             harvester = OrganizationHarvester()
-        else:
+        elif(entity_id.find("/concept/") > 0):
             harvester = ConceptHarvester()
+        elif(entity_id.find("/time") > 0):
+            harvester = TimespanHarvester()
+        else:
+            print("unrecognized entity type for uri:" + entity_id)
         
         self.client = MongoClient(harvester.get_mongo_host(), harvester.get_mongo_port())
-        entity_rows = self.client.annocultor_db.TermList.find_one({ "codeUri" : entity_id })
+        entity_rows = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ EnrichmentEntity.ENTITY_ID : entity_id })
         entity_chunk = {}
         entity_chunk[entity_id] = entity_rows
-        #rawtype = entity_rows['entityType']
+        #used only for filename generation 
+        if('semium' in entity_id):
+            ident = entity_id.split("/")[-1];
+            start_id = int(ident.replace('x', '0'))
+            print(start_id)
+        else:
+            start_id = int(entity_id.split("/")[-1])    
         
-        start = int(entity_id.split("/")[-1])
         #one_entity
-        solrDocFile = harvester.build_solr_doc(entity_chunk, start, True)
+        solrDocFile = harvester.build_solr_doc(entity_chunk, start_id, True)
         return solrDocFile
     
-        #solrDocFile = rawtype[0:-4].lower() + "_" + str(start) + ".xml file."
-        #if(not(is_test)): print("Entity " + entity_id + " written to " + solrDocFile)
-        #if(is_test):
-        #    current_location = harvester.get_writepath(start)
-        #    namebits = entity_id.split("/")
-        #    newname = namebits[-3] + "_" + namebits[-1] + ".xml"
-        #    solrDocFile = IndividualEntityBuilder.OUTDIR + "/" + newname
-        #    shutil.copyfile(current_location, solrDocFile)
-        #    os.remove(current_location) # cleaning up
-        #    return solrDocFile
-#        except Exception as e:
-#            print("No entity with that ID found in database. " + str(e))
-#            return
-
 class ChunkBuilder:
 
     def __init__(self, entity_type, start):
-        self.entity_type = entity_type.lower()
+        self.entity_type = entity_type
         self.start = start
 
     def build_chunk(self):
         #TODO 
-        if(self.entity_type == "concept"):
+        #if(self.entity_type == "concept"):
+        if(self.entity_type == EnrichmentEntity.TYPE_CONCEPT):
             harvester = ConceptHarvester()
-        elif(self.entity_type == "agent"):
+        #elif(self.entity_type == "agent"):
+        elif(self.entity_type == EnrichmentEntity.TYPE_AGENT):
             harvester = AgentHarvester()
-        elif(self.entity_type == "place"):
+        #elif(self.entity_type == "place"):
+        elif(self.entity_type == EnrichmentEntity.TYPE_PLACE):
             harvester = PlaceHarvester()
-        elif(self.entity_type == "organization"):
+        #elif(self.entity_type == "organization"):
+        elif(self.entity_type == EnrichmentEntity.TYPE_ORGANIZATION):
             harvester = OrganizationHarvester()
+        elif(self.entity_type == EnrichmentEntity.TYPE_TIMESPAN):
+            harvester = TimespanHarvester()    
         ec = harvester.build_entity_chunk(self.start)
         harvester.build_solr_doc(ec, self.start)

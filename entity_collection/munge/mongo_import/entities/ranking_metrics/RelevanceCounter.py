@@ -4,7 +4,7 @@ import math
 from urllib.parse import quote_plus
 import sqlite3 as slt
 from MetricsRecord import MetricsRecord
-#from MetricsImporter import MetricsImporter
+from EnrichmentEntity import EnrichmentEntity
 
 class RelevanceCounter:
     """
@@ -24,10 +24,11 @@ class RelevanceCounter:
     
     URI_MARKUP = 'URI_MARKUP'
     QUERY_ENRICHMENT_HITS = "&q=\"" + URI_MARKUP + "\" AND contentTier:(2 OR 3 OR 4)"
-    AGENT = 'agent'
-    PLACE = 'place'
-    CONCEPT = 'concept'
-    ORGANIZATION = 'organization'
+    #AGENT = 'agent'
+    #PLACE = 'place'
+    #TIMESPAN = 'timespan'
+    #CONCEPT = 'concept'
+    #ORGANIZATION = 'organization'
         
     RANGE_EXTENSION_FACTOR = 10000
      
@@ -58,14 +59,14 @@ class RelevanceCounter:
     def fetch_metrics_from_db(self, entity):
             self.db_connect()
             csr = self.db.cursor()
-            entity_id = entity['codeUri']
+            entity_id = entity[EnrichmentEntity.ENTITY][EnrichmentEntity.ABOUT]
             csr.execute("SELECT id, wikidata_id, wikipedia_hits, europeana_enrichment_hits, europeana_string_hits, pagerank FROM hits WHERE id='"+ entity_id + "'")
             return csr.fetchone()
     
     #TODO move method to metric importer        
     def get_raw_relevance_metrics(self, entity):
         first_row = self.fetch_metrics_from_db(entity)
-        entity_id = entity['codeUri']
+        entity_id = entity[EnrichmentEntity.ENTITY][EnrichmentEntity.ABOUT]
         wikipedia_hits = -1 
 
         if(first_row is not None):
@@ -75,7 +76,7 @@ class RelevanceCounter:
         else:
             # wikipedia_hits is not used anymore
             europeana_enrichment_hits = self.get_enrichment_count(entity_id)
-            europeana_string_hits = self.get_label_count(entity['representation'])
+            europeana_string_hits = self.get_label_count(entity[EnrichmentEntity.REPRESENTATION])
             wikidata_id = self.importer.extract_wikidata_uri(entity)
             #TODO import page rank to DB file
             #TODO use MetricsRecord object
@@ -235,28 +236,40 @@ class RelevanceCounter:
 class AgentRelevanceCounter(RelevanceCounter):
 
     def __init__(self, importer):
-        RelevanceCounter.__init__(self, self.AGENT)
+        RelevanceCounter.__init__(self, EnrichmentEntity.TYPE_AGENT)
         self.importer = importer
         self.importer.init_database()
 
 class ConceptRelevanceCounter(RelevanceCounter):
 
     def __init__(self, importer):
-        RelevanceCounter.__init__(self, self.CONCEPT)
+        RelevanceCounter.__init__(self, EnrichmentEntity.TYPE_CONCEPT)
         self.importer = importer
         self.importer.init_database()
 
 class PlaceRelevanceCounter(RelevanceCounter):
 
     def __init__(self, importer):
-        RelevanceCounter.__init__(self, self.PLACE)
+        RelevanceCounter.__init__(self, EnrichmentEntity.TYPE_PLACE)
         self.importer = importer
         self.importer.init_database()
+
+class TimespanRelevanceCounter(RelevanceCounter):
+
+    def __init__(self, importer):
+        RelevanceCounter.__init__(self, EnrichmentEntity.TYPE_TIMESPAN)
+        self.importer = importer
+        self.importer.init_database()
+        
+    #def get_label_count(self, representation):
+        #numeric values for timespan labels return to many false positives 
+    #    return 1
+
 
 class OrganizationRelevanceCounter(RelevanceCounter):
 
     def __init__(self, importer):
-        RelevanceCounter.__init__(self, self.ORGANIZATION)
+        RelevanceCounter.__init__(self, EnrichmentEntity.TYPE_ORGANIZATION)
         self.importer = importer
         self.importer.init_database()
 

@@ -10,6 +10,9 @@ class HarvesterConfig:
     HARVESTER_RELEVANCE_RANKING_MODEL_DEFAULT = "default"
     HARVESTER_RELEVANCE_RANKING_MODEL_NORMALIZED = "normalized"
 
+    DB_ENRICHMENT = 'metis-enrichment'
+    COL_ENRICHMENT_TERM = 'EnrichmentTerm'
+    
     # pagerank settings
     HARVESTER_PAGERANK_SOLR_URI = 'pagerank.solr.uri'
     

@@ -12,6 +12,8 @@ import requests, json, os, sys, re, time
 from pymongo import MongoClient
 import entities.ContextClassHarvesters
 import xml.etree.ElementTree as ET
+from HarvesterConfig import HarvesterConfig
+from EnrichmentEntity import EnrichmentEntity
 
 SOLR_URI = "http://entity-api.eanadev.org:9292/solr/test/select?wt=json&rows=0&q="
 #  SOLR_URI = "http://entity-acceptance.eanadev.org:9191/solr/acceptance/select?wt=json&rows=0&q="
@@ -61,7 +63,7 @@ class StatusReporter:
 def test_totals():
 
     # checking to make sure all entities successfully imported
-    total_mongo_entities = int(moclient.annocultor_db.TermList.find({ "codeUri" : { "$regex" : "http://data.europeana.eu/.*" }}).count())
+    total_mongo_entities = int(moclient.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find({ EnrichmentEntity.ENTITY_ID : { "$regex" : "http://data.europeana.eu/.*" }}).count())
     total_solr_entities = get_solr_total()
     if (total_mongo_entities == total_solr_entities):
         return [StatusReporter("OK", "Test Totals", "All entities", "Totals match: " + str(total_mongo_entities) + " in both datastores")]
@@ -128,8 +130,8 @@ def test_files_against_mongo(filedir='reference'):
             from_xml[normfield] = vals
         # ... then of the structure in mongo
         from_mongo = {}
-        mongo_rec = moclient.annocultor_db.TermList.find_one({ 'codeUri' : from_xml['id.def'][0]})
-        mongo_rep = mongo_rec['representation']
+        mongo_rec = moclient.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ EnrichmentEntity.ENTITY_ID : from_xml['id.def'][0]})
+        mongo_rep = mongo_rec[EnrichmentEntity.REPRESENTATION]
         for mkey in mongo_rep.keys():
             mval = mongo_rep[mkey]
             if(type(mval) is list):
@@ -244,8 +246,8 @@ def test_expected_fields():
                 sys.exit()
             missings = [doc['id'] for doc in qresp]
             for missing in missings:
-                mongo_field = "representation." + IFM[field]
-                mqresp = moclient.annocultor_db.TermList.find_one({ "$and" :[{"codeUri" : missing }, { mongo_field : { "$exists" : True }} ]})
+                mongo_field = EnrichmentEntity.REPRESENTATION +"." + IFM[field]
+                mqresp = moclient.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ "$and" :[{EnrichmentEntity.ENTITY_ID : missing }, { mongo_field : { "$exists" : True }} ]})
                 if(mqresp is not None):
                     errors.append(StatusReporter("BAD", "Expected field test", missing, "Entity " + missing + " missing " + field + " field but field is present in Mongo."))
     return errors
@@ -306,14 +308,16 @@ def compare_m2s_fieldcounts():
     output_fieldcounts(mongo_entity_counter, mongo_instance_counter, solr_entity_counter, solr_instance_counter)
 
 def get_mongo_fieldcounts():
-    # this is simply a deep query of the TermList collection
+    # this is simply a deep query of the get_collection(HarvesterConfig.COL_ENRICHMENT_TERM) collection
     mongo_count_by_entity = {}
     mongo_count_by_instance = {}
-    all_records = moclient.annocultor_db.TermList.find({ "codeUri" : { "$regex" : "http://data.europeana.eu/.*" }})
+    all_records = moclient.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find({ EnrichmentEntity.ENTITY_ID : { "$regex" : "http://data.europeana.eu/.*" }})
     for record in all_records:
         mini_count = {}
-        representation = record['representation']
-        entity_type = record['entityType'].replace("Impl", "").lower()
+        representation = record[EnrichmentEntity.REPRESENTATION]
+        #entity_type = record['entityType'].replace("Impl", "").lower()
+        entity_type = record['entityType'].lower()
+        
         for slot in representation:
             t = type(representation[slot]).__name__
             if(t == 'string'):
@@ -430,7 +434,7 @@ def get_solr_fieldcounts():
     return (solr_entity_counter, solr_instance_counter)
 
 def derive_solr_field_name(mongo_field_name, solr_fields):
-    # given the name of a mongo field in Annocultor DB
+    # given the name of a mongo field in get_database(DB_ENRICHMENT) DB
     # derives the name of the corresponding field in Solr
     errmsg = "NOT FOUND"
     if("." in mongo_field_name):
@@ -537,11 +541,11 @@ def run_test_suite(suppress_stdout=False, log_to_file=False):
 def report_filecount_discrepancy():
     all_mongo_ids = []
     all_solr_ids = []
-    all_records = moclient.annocultor_db.TermList.find({ "codeUri" : { "$regex" : "http://data.europeana.eu/.*" }})
+    all_records = moclient.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find({ EnrichmentEntity.ENTITY_ID : { "$regex" : "http://data.europeana.eu/.*" }})
     count = 0
     for record in all_records:
         try:
-            all_mongo_ids.append(record['codeUri'])
+            all_mongo_ids.append(record[EnrichmentEntity.ENTITY][EnrichmentEntity.ABOUT])
         except:
             pass
         count += 1

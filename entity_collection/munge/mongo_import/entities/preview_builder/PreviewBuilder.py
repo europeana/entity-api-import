@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 import os, re
+from EnrichmentEntity import EnrichmentEntity
 
 class PreviewBuilder:
 
@@ -10,25 +11,24 @@ class PreviewBuilder:
     def __init__(self, mongo_client, entity_type):
         from pymongo import MongoClient
         # note fixed import path
-        from entities.ContextClassHarvesters import ContextClassHarvester
         self.mongoclient = mongo_client
         self.depictions = {}
         # temporarily disable until depictions list will be created
         must_load_depictions = False 
-        #must_load_depictions = (entity_type == 'agent') or (entity_type == 'concept') 
         if(must_load_depictions):
             self.load_depictions()
         
     def build_preview(self, entity_type, entity_id, entity_rows, web_resource):
         preview_fields = {}
         preview_fields['id'] = entity_id
-        preview_fields['type'] = entity_type
+        preview_fields['type'] = entity_type.capitalize()
         preview_fields['prefLabel'] = self.build_pref_label(entity_rows)
         altLabel = self.build_alt_label(entity_rows)
         if(altLabel is not None):
             preview_fields['altLabel'] = altLabel
         
         preview_fields['hiddenLabel'] = self.build_max_recall(entity_type, entity_rows)
+            
         #depiction
         depiction = self.build_depiction(entity_id, entity_rows)
         if(depiction):
@@ -36,13 +36,20 @@ class PreviewBuilder:
         if(web_resource):
             preview_fields['isShownBy'] = self.build_isshownby_label(web_resource)
             
-        if(entity_type == "Agent"):
+        #if(entity_type == "Agent"):
+        if(entity_type == EnrichmentEntity.TYPE_AGENT):
             if(self.build_birthdate(entity_rows)): preview_fields['dateOfBirth'] = self.build_birthdate(entity_rows)
             if(self.build_deathdate(entity_rows)): preview_fields['dateOfDeath'] = self.build_deathdate(entity_rows)
             if(self.build_role(entity_rows)): preview_fields['professionOrOccupation'] = self.build_role(entity_rows)
-        elif(entity_type == "Place"):
+        #elif(entity_type == "Place"):
+        elif(entity_type == EnrichmentEntity.TYPE_PLACE):    
             if(self.build_country_label(entity_rows)): preview_fields['isPartOf'] = self.build_country_label(entity_rows)
-        elif(entity_type == "Organization"):
+        elif(entity_type == EnrichmentEntity.TYPE_TIMESPAN):
+            if('begin' in entity_rows): 
+                preview_fields['begin'] = entity_rows['begin'][EnrichmentEntity.LANG_DEF][0]
+            if('end' in entity_rows): 
+                preview_fields['end'] = entity_rows['end'][EnrichmentEntity.LANG_DEF][0]    
+        elif(entity_type == EnrichmentEntity.TYPE_ORGANIZATION):
             # for some reason the preview data model for multilingual 
             # Organization fields is different from the mulitilingual
             # model elsewhere
@@ -64,15 +71,17 @@ class PreviewBuilder:
             
     def build_pref_label(self, entity_rows):
         all_langs = {}
-        for k in entity_rows['prefLabel']:
-            all_langs[k] = entity_rows['prefLabel'][k][0]
+        for lang in entity_rows['prefLabel']:
+            lang_code = lang if lang != EnrichmentEntity.LANG_DEF else ''
+            all_langs[lang_code] = entity_rows['prefLabel'][lang][0]
         return all_langs
 
     def build_alt_label(self, entity_rows):
         all_langs = {}
         if('altLabel' in entity_rows.keys()):
-            for k in entity_rows['altLabel']:
-                all_langs[k] = entity_rows['altLabel'][k]
+            for lang in entity_rows['altLabel']:
+                lang_code = lang if lang != EnrichmentEntity.LANG_DEF else ''
+                all_langs[lang_code] = entity_rows['altLabel'][lang]
         else:
             return None        
         return all_langs
@@ -81,8 +90,9 @@ class PreviewBuilder:
     def build_acronym(self, entity_rows):
         all_langs = {}
         if('edmAcronym' in entity_rows.keys()):
-            for k in entity_rows['edmAcronym']:
-                all_langs[k] = entity_rows['edmAcronym'][k]
+            for lang in entity_rows['edmAcronym']:
+                lang_code = lang if lang != EnrichmentEntity.LANG_DEF else ''
+                all_langs[lang_code] = entity_rows['edmAcronym'][lang]
         else:
             return None        
         return all_langs
@@ -112,8 +122,9 @@ class PreviewBuilder:
     
     def build_max_recall(self, entity_type, entity_rows):
         all_langs = {}
-        for k in entity_rows['prefLabel']:
-            all_langs[k] = self.transpose_terms(entity_type, entity_rows['prefLabel'][k][0])
+        for lang in entity_rows['prefLabel']:
+            lang_code = lang if lang != EnrichmentEntity.LANG_DEF else ''
+            all_langs[lang_code] = self.transpose_terms(entity_type, entity_rows['prefLabel'][lang][0])
         return all_langs
 
     def transpose_terms(self, entity_type, term):
@@ -123,7 +134,8 @@ class PreviewBuilder:
         # normalizer/AgentNormalizer.java
         term = self.trim_term(term)
         all_terms = [term]
-        if(entity_type != 'Agent'): # only agents need bibliographic inversion
+        #if(entity_type != 'Agent'): # only agents need bibliographic inversion
+        if(entity_type != EnrichmentEntity.TYPE_AGENT): # only agents need bibliographic inversion
             return all_terms
         elif(' ' not in term): # not possible to invert a single term
             return all_terms
@@ -203,12 +215,13 @@ class PreviewBuilder:
             parents = set([parent_uri for k in entity_rows['isPartOf'].keys() for parent_uri in entity_rows['isPartOf'][k]])
             upper_geos = {}
             for parent_uri in parents:
-                parent = self.mongoclient.annocultor_db.TermList.find_one({ 'codeUri' : parent_uri})
+                parent = self.mongoclient.annocultor_db.TermList.find_one({ EnrichmentEntity.ENTITY_ID : parent_uri})
                 if(parent is not None):
                     upper_geos[parent_uri] = {}
-                    for lang in parent['representation']['prefLabel']:
-                        label = parent['representation']['prefLabel'][lang][0]
-                        upper_geos[parent_uri][lang] = label
+                    for lang in parent[EnrichmentEntity.REPRESENTATION]['prefLabel']:
+                        lang_code = lang if lang != EnrichmentEntity.LANG_DEF else ''                
+                        label = parent[EnrichmentEntity.REPRESENTATION]['prefLabel'][lang][0]
+                        upper_geos[parent_uri][lang_code] = label
             if(len(upper_geos.keys()) > 0): return upper_geos
             return None
 

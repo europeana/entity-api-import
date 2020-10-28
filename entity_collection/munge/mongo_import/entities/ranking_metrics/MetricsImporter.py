@@ -4,10 +4,12 @@ import sqlite3
 #import urllib3
 import os
 from pymongo import MongoClient
-from entities import HarvesterConfig
+from HarvesterConfig import HarvesterConfig
 #from entities.ContextClassHarvesters import ContextClassHarvester, ConceptHarvester, AgentHarvester, PlaceHarvester, OrganizationHarvester
 ##from RelevanceCounter import RelevanceCounter
 from MetricsRecord import MetricsRecord
+from EnrichmentEntity import EnrichmentEntity
+
 #import MetricsRecord
 #from entities.ranking_metrics.RelevanceCounter import RelevanceCounter 
 #from urllib.parse import quote
@@ -30,13 +32,15 @@ class MetricsImporter:
 
     DB_CONCEPT = "./db/concept.db"     
     DB_PLACE = "./db/place.db"     
+    DB_TIMESPAN = "./db/timespan.db"     
     DB_AGENT = "./db/agent.db"
     DB_ORGANIZATION = "./db/organization.db"     
 
-    TYPE_CONCEPT = "ConceptImpl"     
-    TYPE_PLACE = "PlaceImpl"     
-    TYPE_AGENT = "AgentImpl"
-    TYPE_ORGANIZATION = "OrganizationImpl"
+    #TYPE_CONCEPT = "CONCEPT"     
+    #TYPE_PLACE = "PLACE"     
+    #TYPE_PLACE = "TYPESPAN"     
+    #TYPE_AGENT = "AGENT"
+    #TYPE_ORGANIZATION = "ORGANIZATION"
      
 
     PR_URI_PREFIX = "http://wikidata.dbpedia.entity/resource/"        
@@ -48,7 +52,7 @@ class MetricsImporter:
     wikidata_europeana_mapping = None
     
     def __init__(self, harvester, database, entity_type):
-        self.config = HarvesterConfig.HarvesterConfig()
+        self.config = HarvesterConfig()
         self.mongo = MongoClient(self.config.get_mongo_host(), self.config.get_mongo_port())
         self.database = database
         self.entity_type = entity_type
@@ -63,7 +67,7 @@ class MetricsImporter:
     def import_metrics(self, entity=None):
         print("start importing metrics for entity type:" + self.entity_type) 
         
-        entity_id = entity['codeUri']
+        entity_id = entity[EnrichmentEntity.ENTITY][EnrichmentEntity.ABOUT]
         wikidata_id = self.extract_wikidata_uri(entity)
         
         #ensure database is initialized
@@ -108,7 +112,7 @@ class MetricsImporter:
         self.load_wikidata_identifiers_for_places()
         wikidata_id = None
         if (self.wikidata_europeana_mapping is not None):
-            europeana_id = entity['codeUri']
+            europeana_id = entity[EnrichmentEntity.ENTITY][EnrichmentEntity.ABOUT]
             if (europeana_id in self.wikidata_europeana_mapping.keys()):
                 wikidata_id = self.wikidata_europeana_mapping[europeana_id]
         
@@ -118,10 +122,10 @@ class MetricsImporter:
     def extract_wikidata_uri(self, entity):
         wikidata_uri = None
         #places do not have the wikidata id in same as
-        if MetricsRecord.PLACE in self.entity_type.lower():
+        if EnrichmentEntity.TYPE_PLACE == self.entity_type:
             wikidata_uri = self.get_wikidata_uri_for_place(entity)        
         else: 
-            representation = entity['representation']
+            representation = entity[EnrichmentEntity.REPRESENTATION]
             if('owlSameAs' in representation.keys()):
                 for uri in representation['owlSameAs']:
                     if (uri.startswith(MetricsRecord.WIKIDATA_PREFFIX)):
@@ -161,7 +165,6 @@ class MetricsImporter:
         while (start < self.entity_count):
             print("start storing metrics:" + str(start))
             #create OrgRecords
-            #self.mongo.annocultor_db.TermList.find({ "entityType" : self.entity_type})
             entities = self.fetch_entity_batch(start)
             
             #build metric records
@@ -189,13 +192,12 @@ class MetricsImporter:
         while (start < self.entity_count):
             print("start updating pagerank:" + str(start))
             #create OrgRecords
-            #self.mongo.annocultor_db.TermList.find({ "entityType" : self.entity_type})
             entities = self.fetch_entity_batch(start)
             
             #build metric records
             for entity in entities:
                 #add to record list
-                entity_id = entity['codeUri']
+                entity_id = entity[EnrichmentEntity.ENTITY][EnrichmentEntity.ABOUT]
                 wikidata_id = self.extract_wikidata_uri(entity)
                 page_rank = 0.0
                 if (wikidata_id in self.pageranks.keys()):
@@ -236,7 +238,7 @@ class MetricsImporter:
     def fetch_metrics(self, entity):
         #if( i == 10):
         #    break
-        entity_id = entity['codeUri']
+        entity_id = entity[EnrichmentEntity.ENTITY][EnrichmentEntity.ABOUT]
         #representation =  entity[ContextClassHarvester.REPRESENTATION]
         #used only for easy record identification
         label = self.extract_def_label(entity)
@@ -291,13 +293,13 @@ class MetricsImporter:
     def extract_all_labels (self, term_list):
         lbls = []
         #TODO filter to use only labels in European languages (use boolean method param)
-        for lv in term_list['representation']['prefLabel']:
-            [lbls.append(lbl) for lbl in term_list['representation']['prefLabel'][lv]]
+        for lv in term_list[EnrichmentEntity.REPRESENTATION]['prefLabel']:
+            [lbls.append(lbl) for lbl in term_list[EnrichmentEntity.REPRESENTATION]['prefLabel'][lv]]
         #alt labels are not mandatory
-        if('altLabel' in term_list['representation'].keys()):
-            for lv in term_list['representation']['altLabel']:
+        if('altLabel' in term_list[EnrichmentEntity.REPRESENTATION].keys()):
+            for lv in term_list[EnrichmentEntity.REPRESENTATION]['altLabel']:
                 try:
-                    [lbls.append(lbl) for lbl in term_list['representation']['altLabel'][lv]]
+                    [lbls.append(lbl) for lbl in term_list[EnrichmentEntity.REPRESENTATION]['altLabel'][lv]]
                 except KeyError:
                     pass    
         return lbls    
@@ -305,7 +307,7 @@ class MetricsImporter:
     def extract_def_label(self, term_list):    
         #en_label = entity['representation']['prefLabel']['en'][0]
         label = 'Not available'
-        pref_label = term_list['representation']['prefLabel']
+        pref_label = term_list[EnrichmentEntity.REPRESENTATION]['prefLabel']
         country_key = None
         if('edmCountry' in term_list.keys()):
             country_key = term_list['edmCountry'].lower()
@@ -357,7 +359,6 @@ class MetricsImporter:
         while (start < self.entity_count):
             print("load wikidata uris for batch: ", str(start))
             #create OrgRecords
-            #self.mongo.annocultor_db.TermList.find({ "entityType" : self.entity_type})
             entities = self.fetch_entity_batch(start)
             
             #build metric records
@@ -372,12 +373,12 @@ class MetricsImporter:
             start = batch * self.BATCH_SIZE
         
     def fetch_entity_batch(self, start):
-        entities = self.mongo.annocultor_db.TermList.find({ "entityType" : self.entity_type})
+        entities = self.mongo.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find({ "entityType" : self.entity_type})
         #entities.batch_size(batch_size)
         entities.skip(start);
         entities.limit(self.BATCH_SIZE);
         return entities
         
     def get_entity_count(self):
-        return self.mongo.annocultor_db.TermList.count({ "entityType" : self.entity_type})
+        return self.mongo.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).count({ "entityType" : self.entity_type})
 

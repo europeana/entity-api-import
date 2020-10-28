@@ -139,3 +139,34 @@ def build_org_file(self, start):
         except:
             log_failure("Organization", start)
             return False
+
+@app.task(name='mongo_import.get_timespan_count', bind=True, default_retry_delay=3, max_retries=5)
+def get_timespan_count(self):
+    try:
+        tsh = ContextClassHarvesters.TimespanHarvester()
+        entity_count = tsh.get_entity_count()
+        return entity_count
+    # note that we don't handle all possible exceptions
+    # Celery will pass most errors and exceptions onto the logger
+    # and set the task status to failure if left unhandled
+    # most of the time this is what we want
+    except ServerSelectionTimeoutError as ss:
+        try:
+            raise self.retry()
+        except MaxRetriesExceededError:
+            log_failure("Timespan", "Count")
+            return False
+            
+@app.task(name='mongo_import.build_timespan_file', bind=True, default_retry_delay=300, max_retries=5)
+def build_timespan_file(self, start):
+    try:
+        tsh = ContextClassHarvesters.TimespanHarvester()
+        entity_list = tsh.build_entity_chunk(start)
+        status = tsh.build_solr_doc(entity_list, start)
+        return status
+    except ServerSelectionTimeoutError as ss:
+        try:
+            raise self.retry()
+        except:
+            log_failure("Timespan", start)
+            return False
