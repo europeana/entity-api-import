@@ -553,13 +553,7 @@ class TimespanHarvester(ContextClassHarvester):
         ContextClassHarvester.__init__(self, EnrichmentEntity.TYPE_TIMESPAN)
         self.importer = MetricsImporter(self, MetricsImporter.DB_TIMESPAN, EnrichmentEntity.TYPE_TIMESPAN)
         self.relevance_counter = RelevanceCounter.TimespanRelevanceCounter(self.importer)
-
     
-    def grab_isshownby(self, docroot, web_resource):
-        #isShownBy not supported for places
-        return
-
-
 
 class OrganizationHarvester(ContextClassHarvester):
 
