@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 import os, re
 from EnrichmentEntity import EnrichmentEntity
+from HarvesterConfig import HarvesterConfig
 
 class PreviewBuilder:
 
@@ -27,7 +28,8 @@ class PreviewBuilder:
         if(altLabel is not None):
             preview_fields['altLabel'] = altLabel
         
-        preview_fields['hiddenLabel'] = self.build_max_recall(entity_type, entity_rows)
+        # removed hidden label #EA-2260
+        #preview_fields['hiddenLabel'] = self.build_max_recall(entity_type, entity_rows)
             
         #depiction
         depiction = self.build_depiction(entity_id, entity_rows)
@@ -38,12 +40,20 @@ class PreviewBuilder:
             
         #if(entity_type == "Agent"):
         if(entity_type == EnrichmentEntity.TYPE_AGENT):
-            if(self.build_birthdate(entity_rows)): preview_fields['dateOfBirth'] = self.build_birthdate(entity_rows)
-            if(self.build_deathdate(entity_rows)): preview_fields['dateOfDeath'] = self.build_deathdate(entity_rows)
-            if(self.build_role(entity_rows)): preview_fields['professionOrOccupation'] = self.build_role(entity_rows)
+            birth_date = self.build_birthdate(entity_rows) 
+            if(birth_date): 
+                preview_fields['dateOfBirth'] = birth_date
+            death_date = self.build_deathdate(entity_rows) 
+            if(death_date): 
+                preview_fields['dateOfDeath'] = death_date
+            role = self.build_role(entity_rows) 
+            if(role): 
+                preview_fields['professionOrOccupation'] = role
         #elif(entity_type == "Place"):
-        elif(entity_type == EnrichmentEntity.TYPE_PLACE):    
-            if(self.build_country_label(entity_rows)): preview_fields['isPartOf'] = self.build_country_label(entity_rows)
+        elif(entity_type == EnrichmentEntity.TYPE_PLACE):
+            country_label = self.build_country_label(entity_rows)    
+            if(country_label): 
+                preview_fields['isPartOf'] = country_label
         elif(entity_type == EnrichmentEntity.TYPE_TIMESPAN):
             if('begin' in entity_rows): 
                 preview_fields['begin'] = entity_rows['begin'][EnrichmentEntity.LANG_DEF][0]
@@ -212,18 +222,38 @@ class PreviewBuilder:
 
     def build_country_label(self, entity_rows):
         if 'isPartOf' in entity_rows.keys():
-            parents = set([parent_uri for k in entity_rows['isPartOf'].keys() for parent_uri in entity_rows['isPartOf'][k]])
+            parent_uri = entity_rows['isPartOf']
+            #parents = set([parent_uri for k in entity_rows['isPartOf'].keys() for parent_uri in entity_rows['isPartOf'][k]])
             upper_geos = {}
-            for parent_uri in parents:
-                parent = self.mongoclient.annocultor_db.TermList.find_one({ EnrichmentEntity.ENTITY_ID : parent_uri})
-                if(parent is not None):
+            while (parent_uri):
+                parent = self.mongoclient.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ EnrichmentEntity.ENTITY_ID : parent_uri})
+                if(parent is None):
+                    #parent not found, break loop condition
+                    raise Exception('Parent not found in database with id:' + parent_uri)
+                elif('isPartOf' in parent[EnrichmentEntity.REPRESENTATION].keys()):
+                    #not top parent (country), move to next parent
+                    parent_uri = parent[EnrichmentEntity.REPRESENTATION]['isPartOf']
+                else:    
                     upper_geos[parent_uri] = {}
                     for lang in parent[EnrichmentEntity.REPRESENTATION]['prefLabel']:
                         lang_code = lang if lang != EnrichmentEntity.LANG_DEF else ''                
                         label = parent[EnrichmentEntity.REPRESENTATION]['prefLabel'][lang][0]
                         upper_geos[parent_uri][lang_code] = label
-            if(len(upper_geos.keys()) > 0): return upper_geos
-            return None
+                    #top parent, break loop
+                    break
+                    
+            #for parent_uri in parents:
+            #    parent = self.mongoclient.annocultor_db.TermList.find_one({ EnrichmentEntity.ENTITY_ID : parent_uri})
+            #    if(parent is not None):
+            #        upper_geos[parent_uri] = {}
+            #        for lang in parent[EnrichmentEntity.REPRESENTATION]['prefLabel']:
+            #            lang_code = lang if lang != EnrichmentEntity.LANG_DEF else ''                
+            #            label = parent[EnrichmentEntity.REPRESENTATION]['prefLabel'][lang][0]
+            #            upper_geos[parent_uri][lang_code] = label
+            if(len(upper_geos.keys()) > 0): 
+                return upper_geos
+            else:
+                return None
 
     def build_topConcept(self, entity_rows, language):
         # TODO: update this method once top entities dereferenceable
