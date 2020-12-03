@@ -338,7 +338,11 @@ class ContextClassHarvester:
                 #remove geo:, keep just lat,long 
                 value = v.split(":")[-1]
                     
-            if(key not in ContextClassHarvester.FIELD_MAP.keys() and not self.is_ignored_property(key)):
+            if(self.is_ignored_property(key)):
+                #ignored properties are not mapped to solr document
+                continue
+        
+            if(key not in ContextClassHarvester.FIELD_MAP.keys()):
                 self.log_warm_message(entity_id, "unmapped field: " + key)
                 continue
         
