@@ -79,6 +79,7 @@ class ContextClassHarvester:
     LABEL = 'label'
     TYPE = 'type'
     TYPE_STRING = 'string'
+    TYPE_OBJECT = 'obj'
     TYPE_REF = 'ref'
     
     #TODO remove when whole code is switched to use the EnrichmentEntity language constants
@@ -166,6 +167,8 @@ class ContextClassHarvester:
         #'edmOrganizationSector' : { 'label' : 'edm_organizationSector', TYPE : TYPE_STRING},
         #'edmOrganizationScope' : { 'label' : 'edm_organizationScope', TYPE : TYPE_STRING},
         'edmGeographicLevel' : { LABEL : EnrichmentEntity.GEOGRAPHIC_LEVEL, TYPE : TYPE_STRING},
+        'address' : { LABEL : 'vcard_hasAddress', TYPE : TYPE_OBJECT},
+        #not sure if used anymore
         'address_about' : { LABEL : 'vcard_hasAddress', TYPE : TYPE_STRING},
         'vcardStreetAddress' : { LABEL : 'vcard_streetAddress', TYPE : TYPE_STRING},
         'vcardLocality' : { LABEL : 'vcard_locality', TYPE : TYPE_STRING },
@@ -328,13 +331,18 @@ class ContextClassHarvester:
         for k, v in address.items():
             key = k	
             value = v
+            #about is not an ignored property for address
             if ("about" == k):
                 key = "address_" + k
             elif ("vcardHasGeo" == k):
                 #remove geo:, keep just lat,long 
                 value = v.split(":")[-1]
                     
-            if(key not in ContextClassHarvester.FIELD_MAP.keys() and key != 'about'):
+            if(self.is_ignored_property(key)):
+                #ignored properties are not mapped to solr document
+                continue
+        
+            if(key not in ContextClassHarvester.FIELD_MAP.keys()):
                 self.log_warm_message(entity_id, "unmapped field: " + key)
                 continue
         
@@ -349,8 +357,9 @@ class ContextClassHarvester:
         # Solr time format YYYY-MM-DDThh:mm:ssZ
         if "created" in entity_rows:
             self.add_field(docroot, 'created', entity_rows["created"].isoformat()+"Z")
-        if "modified" in entity_rows:
-            self.add_field(docroot, "modified", entity_rows["modified"].isoformat()+"Z")
+        #"modified" changed to updated in the database
+        if "updated" in entity_rows:
+            self.add_field(docroot, "modified", entity_rows["updated"].isoformat()+"Z")
 
     def is_ignored_property(self, characteristic):
         return str(characteristic) in self.IGNORED_PROPS
@@ -359,12 +368,14 @@ class ContextClassHarvester:
         #all pref labels
         all_preflabels = []
         for characteristic in entity[EnrichmentEntity.REPRESENTATION]:
-            if(characteristic == "address"):
-                self.process_address(docroot, entity_id, entity[EnrichmentEntity.REPRESENTATION]['address'])
-            elif (str(characteristic) not in ContextClassHarvester.FIELD_MAP.keys()) and not self.is_ignored_property(characteristic):
+            if(self.is_ignored_property(characteristic)):
+                continue
+            elif (str(characteristic) not in ContextClassHarvester.FIELD_MAP.keys()):
                 # TODO: log this?
                 print("unmapped property: " + str(characteristic))
                 continue
+            elif(characteristic == "address"):
+                self.process_address(docroot, entity_id, entity[EnrichmentEntity.REPRESENTATION]['address'])
             # TODO: Refactor horrible conditional
             elif(str(characteristic) == "dcIdentifier"):
                 self.add_field_list(docroot, EnrichmentEntity.DC_IDENTIFIER, entity[EnrichmentEntity.REPRESENTATION]['dcIdentifier'][EnrichmentEntity.LANG_DEF])
@@ -386,6 +397,10 @@ class ContextClassHarvester:
                 #pick first value from default language for timestamps, need to check for agents
                 self.add_field(docroot, EnrichmentEntity.EDM_END, entity[EnrichmentEntity.REPRESENTATION]['end'][EnrichmentEntity.LANG_DEF][0])
             elif(type(entity[EnrichmentEntity.REPRESENTATION][characteristic]) is dict):
+                # hiddenLabels are currenlty used only for Timespans
+                if(str(characteristic) == "hiddenLabel" and self.ignore_hidden_label()):
+                    continue
+            
                 #for each entry in the language map
                 for lang in entity[EnrichmentEntity.REPRESENTATION][characteristic]:
                     pref_label_count = 0
@@ -450,8 +465,7 @@ class ContextClassHarvester:
                     field_value = entity[EnrichmentEntity.REPRESENTATION][characteristic]
                     self.add_field(docroot, field_name, str(field_value))
                 except KeyError as error:
-                    if( not self.is_ignored_property(characteristic)):
-                        print('Attribute found in source but undefined in schema.' + str(error))
+                    print('Attribute found in source but undefined in schema.' + str(error))
                     
         #add suggester payload
         web_resource = self.depiction_manager.get_depiction(entity_id)
@@ -502,6 +516,8 @@ class ContextClassHarvester:
         if(self.suggest_by_acronym() and (value not in suggester_values)):
             suggester_values.append(value)
     
+    def ignore_hidden_label(self):
+        return True
     
 class ConceptHarvester(ContextClassHarvester):
 
@@ -553,13 +569,9 @@ class TimespanHarvester(ContextClassHarvester):
         ContextClassHarvester.__init__(self, EnrichmentEntity.TYPE_TIMESPAN)
         self.importer = MetricsImporter(self, MetricsImporter.DB_TIMESPAN, EnrichmentEntity.TYPE_TIMESPAN)
         self.relevance_counter = RelevanceCounter.TimespanRelevanceCounter(self.importer)
-
     
-    def grab_isshownby(self, docroot, web_resource):
-        #isShownBy not supported for places
-        return
-
-
+    def ignore_hidden_label(self):
+        return False
 
 class OrganizationHarvester(ContextClassHarvester):
 

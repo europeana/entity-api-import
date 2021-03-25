@@ -58,7 +58,7 @@ class StatusReporter:
 def test_totals():
 
     # checking to make sure all entities successfully imported
-    total_mongo_entities = int(moclient.get_database(HarvesterConfig.DB_ENRICHMENT).TermList.find({}).count())
+    total_mongo_entities = int(moclient.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find({}).count())
     total_solr_entities = get_solr_total()
     if (total_mongo_entities == total_solr_entities):
         return [StatusReporter("OK", "Test Totals", "All entities", "Totals match: " + str(total_mongo_entities) + " in both datastores")]
@@ -114,7 +114,7 @@ def test_files_against_mongo(filedir='reference'):
             from_xml[field] = vals
         # ... then of the structure in mongo
         from_mongo = {}
-        mongo_rec = moclient.get_database(HarvesterConfig.DB_ENRICHMENT).TermList.find_one({ EnrichmentEntity.ENTITY_ID : from_xml['id'][0]})
+        mongo_rec = moclient.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ EnrichmentEntity.ENTITY_ID : from_xml['id'][0]})
         mongo_rep = mongo_rec[EnrichmentEntity.REPRESENTATION]
         for mkey in mongo_rep.keys():
             mval = mongo_rep[mkey]

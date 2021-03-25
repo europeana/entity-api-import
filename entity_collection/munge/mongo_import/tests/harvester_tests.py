@@ -18,23 +18,24 @@ class HarvesterTest(unittest.TestCase):
     def test_build_entity_list(self):
         ieb = entities.ContextClassHarvesters.IndividualEntityBuilder()
         test_entities = [
-            #"http://data.europeana.eu/agent/base/11241",   # Paris Hilton
-            #"http://data.europeana.eu/agent/base/146741",  # Leonardo da Vinci
-            #"http://data.europeana.eu/place/base/40360",   # Den Haag
-            #"http://data.europeana.eu/place/base/143914",  # Ferrara
-            #"http://data.europeana.eu/concept/base/214",   # Neoclassicism
-            #"http://data.europeana.eu/concept/base/207",    # Byzantine art
-            #"http://data.europeana.eu/organization/1482250000002112001",    # BnF 
-            #"http://data.europeana.eu/organization/1482250000004375509", #Deutsches film institute
-            #"http://data.europeana.eu/agent/base/178", #agent max page rank: Aristotel
-            #"http://data.europeana.eu/place/base/216254", #place max page rank: United States
-            #"http://data.europeana.eu/concept/base/83", #concept max page rank: World War I
-            #"http://data.europeana.eu/organization/1482250000004505021", #organization max page rank: Internet Archive
-            #"http://data.europeana.eu/organization/1482250000004503580",
-            #"http://data.europeana.eu/concept/base/1326",#with isShownBy, Minimal-Techno
-            #"http://data.europeana.eu/concept/base/1337",#with isShownBy, Pastorale
-            #"http://data.europeana.eu/agent/base/100013",#J.R. (music)
-            #"http://data.europeana.eu/place/base/41948"#paris
+            "http://data.europeana.eu/agent/base/60157", #Miquel de Cervantes
+            "http://data.europeana.eu/agent/base/11241",   # Paris Hilton
+            "http://data.europeana.eu/agent/base/146741",  # Leonardo da Vinci
+            "http://data.europeana.eu/place/base/40360",   # Den Haag
+            "http://data.europeana.eu/place/base/143914",  # Ferrara
+            ##"http://data.europeana.eu/concept/base/214",   # Neoclassicism
+            "http://data.europeana.eu/concept/base/207",    # Byzantine art
+            "http://data.europeana.eu/organization/1482250000002112001",    # BnF 
+            "http://data.europeana.eu/organization/1482250000004375509", #Deutsches film institute
+            "http://data.europeana.eu/agent/base/178", #agent max page rank: Aristotel
+            "http://data.europeana.eu/place/base/216254", #place max page rank: United States
+            "http://data.europeana.eu/concept/base/83", #concept max page rank: World War I
+            "http://data.europeana.eu/organization/1482250000004505021", #organization max page rank: Internet Archive
+            "http://data.europeana.eu/organization/1482250000004503580",
+            "http://data.europeana.eu/concept/base/1326",#with isShownBy, Minimal-Techno
+            "http://data.europeana.eu/concept/base/1337",#with isShownBy, Pastorale
+            "http://data.europeana.eu/agent/base/100013",#J.R. (music)
+            "http://data.europeana.eu/place/base/41948",#paris
             "http://data.europeana.eu/timespan/1",
             "http://data.europeana.eu/timespan/2",
             "http://data.europeana.eu/timespan/3",
@@ -82,8 +83,14 @@ class HarvesterTest(unittest.TestCase):
         #entity_id = "http://data.europeana.eu/agent/base/146741"
         #government of catalunia
         #entity_id = "http://data.europeana.eu/organization/1482250000004503580"
+        #BNF
+        #entity_id = "http://data.europeana.eu/organization/1482250000002112001" 
+        #Naturalis    
+        entity_id = "http://data.europeana.eu/organization/1482250000000370517"    
         # Timespan 
-        entity_id = "http://semium.org/time/0079"
+        #entity_id = "http://data.europeana.eu/timespan/21"
+        # Cervantes
+        #entity_id = "http://data.europeana.eu/agent/base/60157"
                 
         ieb = entities.ContextClassHarvesters.IndividualEntityBuilder()
         ieb.build_individual_entity(entity_id)
