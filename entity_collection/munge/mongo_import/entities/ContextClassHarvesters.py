@@ -81,6 +81,7 @@ class ContextClassHarvester:
     TYPE_STRING = 'string'
     TYPE_OBJECT = 'obj'
     TYPE_REF = 'ref'
+    PROP_OWL_SAMEAS = 'owlSameAs'
     
     #TODO remove when whole code is switched to use the EnrichmentEntity language constants
     LANG_DEF = EnrichmentEntity.LANG_DEF
@@ -526,6 +527,10 @@ class ConceptHarvester(ContextClassHarvester):
         #sys.path.append(os.path.join(os.path.dirname(__file__), 'ranking_metrics'))
         self.importer = MetricsImporter(self, MetricsImporter.DB_CONCEPT, EnrichmentEntity.TYPE_CONCEPT)
         self.relevance_counter = RelevanceCounter.ConceptRelevanceCounter(self.importer)
+    
+    def is_ignored_property(self, characteristic):
+        #ignore sameAs for Concepts
+        return str(characteristic) in self.IGNORED_PROPS or ContextClassHarvester.PROP_OWL_SAMEAS == str(characteristic)
 
 
 class AgentHarvester(ContextClassHarvester):
