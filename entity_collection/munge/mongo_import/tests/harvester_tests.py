@@ -86,12 +86,16 @@ class HarvesterTest(unittest.TestCase):
         #BNF
         #entity_id = "http://data.europeana.eu/organization/1482250000002112001" 
         #Naturalis    
-        entity_id = "http://data.europeana.eu/organization/1482250000000370517"    
+        #entity_id = "http://data.europeana.eu/organization/1482250000000370517"    
         # Timespan 
         #entity_id = "http://data.europeana.eu/timespan/21"
         # Cervantes
         #entity_id = "http://data.europeana.eu/agent/base/60157"
                 
+        # rock and roll
+        entity_id = "http://data.europeana.eu/concept/base/1643"
+        
+        
         ieb = entities.ContextClassHarvesters.IndividualEntityBuilder()
         ieb.build_individual_entity(entity_id)
     
