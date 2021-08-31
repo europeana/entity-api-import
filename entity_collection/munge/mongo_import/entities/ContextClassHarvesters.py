@@ -88,7 +88,7 @@ class ContextClassHarvester:
     LANG_EN = EnrichmentEntity.LANG_EN
     
     
-    IGNORED_PROPS = ['about', '_id', "className"]
+    IGNORED_PROPS = ['about', '_id', "className", "edmOrganizationSector"]
         
     FIELD_MAP = {
         # maps mongo fields to their solr equivalents
@@ -205,7 +205,7 @@ class ContextClassHarvester:
         self.config = HarvesterConfig()
         #TODO: remove field name and use entity type
         self.name = entity_type + 's'
-        self.client = MongoClient(self.get_mongo_host(), self.get_mongo_port())
+        self.client = MongoClient(self.get_mongo_host())
         self.ranking_model = self.config.get_relevance_ranking_model()
         self.write_dir = ContextClassHarvester.WRITEDIR + "/" + self.ranking_model
         #TODO create working dir here, including folders for individual entities and organization type
@@ -217,9 +217,9 @@ class ContextClassHarvester:
         #return default mongo host, the subclasses may use the type based config (e.g. see organizations)
         return self.config.get_mongo_host() 
         
-    def get_mongo_port (self):
+    #def get_mongo_port (self):
         #return default mongo port, the subclasses may use the type based config (e.g. see also organizations host)
-        return self.config.get_mongo_port()
+        #return self.config.get_mongo_port()
     
     def get_entity_count(self):
         entities = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find({'entityType': self.entity_type.upper(), EnrichmentEntity.ENTITY_ID: { '$regex': 'http://data.europeana.eu/.*' }}).count()
@@ -586,8 +586,8 @@ class OrganizationHarvester(ContextClassHarvester):
         self.importer = MetricsImporter(self, MetricsImporter.DB_ORGANIZATION, EnrichmentEntity.TYPE_ORGANIZATION)        
         self.relevance_counter = RelevanceCounter.OrganizationRelevanceCounter(self.importer)
 
-    def get_mongo_host (self):
-        return self.config.get_mongo_host(self.name)
+    #def get_mongo_host (self):
+    #    return self.config.get_mongo_host(self.name)
      
     def suggest_by_alt_label(self):
         return True
@@ -619,7 +619,7 @@ class IndividualEntityBuilder:
         else:
             print("unrecognized entity type for uri:" + entity_id)
         
-        self.client = MongoClient(harvester.get_mongo_host(), harvester.get_mongo_port())
+        self.client = MongoClient(harvester.get_mongo_host())
         entity_rows = self.client.get_database(HarvesterConfig.DB_ENRICHMENT).get_collection(HarvesterConfig.COL_ENRICHMENT_TERM).find_one({ EnrichmentEntity.ENTITY_ID : entity_id })
         entity_chunk = {}
         entity_chunk[entity_id] = entity_rows

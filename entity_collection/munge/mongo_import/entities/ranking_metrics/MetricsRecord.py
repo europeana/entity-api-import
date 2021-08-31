@@ -31,7 +31,7 @@ class MetricsRecord:
             EnrichmentEntity.TYPE_AGENT : 31734,
             EnrichmentEntity.TYPE_PLACE : 3065416,
             EnrichmentEntity.TYPE_CONCEPT : 1448506,
-            EnrichmentEntity.TYPE_ORGANIZATION : 1,
+            EnrichmentEntity.TYPE_ORGANIZATION : 4533945,
             EnrichmentEntity.TYPE_TIMESPAN : 4114703
             },
         METRIC_TERM_HITS : {

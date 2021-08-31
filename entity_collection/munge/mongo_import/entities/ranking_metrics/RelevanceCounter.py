@@ -133,16 +133,28 @@ class RelevanceCounter:
         }
         return metrics
     
+    #def get_enrichment_count(self, uri):
+    #    qry = self.config.get_relevance_solr() + self.get_enrichment_count_query(uri)
+    #    res = requests.get(qry)
+    #    try:
+    #        return res.json()['response']['numFound']
+    #    except:
+    #        return 0
     def get_enrichment_count(self, uri):
-        qry = self.config.get_relevance_solr() + self.get_enrichment_count_query(uri)
-        res = requests.get(qry)
+        api_search_url = self.get_enrichment_count_query(uri)
+        return self.get_total_results(api_search_url)
+        
+
+    def get_total_results(self, api_search_url):
+        res = requests.get(api_search_url, verify=False)
         try:
-            return res.json()['response']['numFound']
+            return res.json()['totalResults']
         except:
             return 0
-
+        
+    
     def get_enrichment_count_query(self, uri):
-        return str(self.QUERY_ENRICHMENT_HITS).replace(self.URI_MARKUP, uri)
+        return self.config.get_relevance_api_url() + self.get_enrichment_count_field() + ':"' + uri + '"'
               
     def get_label_count(self, representation):
         all_labels = []
@@ -150,11 +162,10 @@ class RelevanceCounter:
         #qry_labels = ["\"" + label + "\"" for label in all_labels]
         #TODO limit the number of pref labels and ensure usage fo default label
         qry_labels = ["\"" + label + "\"" for label in all_labels]
-        term_hits_query = self.build_term_hits_query(qry_labels)
+        api_search_url = self.build_term_hits_query(qry_labels)
         
         try:
-            res = requests.get(term_hits_query)
-            return res.json()['response']['numFound']
+            term_hits = self.get_total_results(api_search_url)
         #except:
         #    print("Term hits computation failed for request: " + qry)
         #    return 0
@@ -165,22 +176,26 @@ class RelevanceCounter:
             #print(term_hits_query)
             if(len(qry_labels) > 10):
                 try:
-                    term_hits_query = self.build_term_hits_query(qry_labels[0:10])
-                    th_as_json = requests.get(term_hits_query).json()
-                    term_hits = th_as_json['response']['numFound']
+                    api_search_url = self.build_term_hits_query(qry_labels[0:10])
+                    term_hits = self.get_total_results(api_search_url)
                 except (ValueError, KeyError):
                     term_hits = 0    
             else:    
-                print("cannot get term hits with query: " + term_hits_query)
+                print("cannot get term hits with query: " + api_search_url)
                 term_hits = 0
         
         return term_hits    
 
     #generic method for building term hit query, may be overwritten in subclasses
+    #def build_term_hits_query(self, lbls):
+    #    qs = " OR ".join(lbls)
+    #    qry = self.config.get_relevance_solr() + "&q=" + quote_plus(qs)
+    #    return qry
     def build_term_hits_query(self, lbls):
         qs = " OR ".join(lbls)
-        qry = self.config.get_relevance_solr() + "&q=" + quote_plus(qs)
+        qry = self.self.config.get_relevance_api_url() + quote_plus(qs)
         return qry
+    
         
     def calculate_relevance_score(self, uri, pagerank, eu_enrichment_count, eu_hit_count):
         if(pagerank is None or pagerank < 1): pagerank = 1
@@ -239,6 +254,9 @@ class AgentRelevanceCounter(RelevanceCounter):
         RelevanceCounter.__init__(self, EnrichmentEntity.TYPE_AGENT)
         self.importer = importer
         self.importer.init_database()
+        
+    def get_enrichment_count_field(self):
+        return 'edm_agent'
 
 class ConceptRelevanceCounter(RelevanceCounter):
 
@@ -246,6 +264,9 @@ class ConceptRelevanceCounter(RelevanceCounter):
         RelevanceCounter.__init__(self, EnrichmentEntity.TYPE_CONCEPT)
         self.importer = importer
         self.importer.init_database()
+    
+    def get_enrichment_count_field(self):
+        return 'skos_concept'
 
 class PlaceRelevanceCounter(RelevanceCounter):
 
@@ -254,6 +275,9 @@ class PlaceRelevanceCounter(RelevanceCounter):
         self.importer = importer
         self.importer.init_database()
 
+    def get_enrichment_count_field(self):
+        return 'edm_place'
+
 class TimespanRelevanceCounter(RelevanceCounter):
 
     def __init__(self, importer):
@@ -261,9 +285,8 @@ class TimespanRelevanceCounter(RelevanceCounter):
         self.importer = importer
         self.importer.init_database()
         
-    #def get_label_count(self, representation):
-        #numeric values for timespan labels return to many false positives 
-    #    return 1
+    def get_enrichment_count_field(self):
+        return 'edm_timespan'
 
 
 class OrganizationRelevanceCounter(RelevanceCounter):
@@ -273,13 +296,17 @@ class OrganizationRelevanceCounter(RelevanceCounter):
         self.importer = importer
         self.importer.init_database()
 
-    def get_enrichment_count(self, uri):
-        #TODO add proper implementation of counting items for organizations
-        print("return default enrichment count 1 for organization: " + uri)
-        return 1
+    #def get_enrichment_count(self, uri):
+    #    #TODO add proper implementation of counting items for organizations
+    #    enrichmentSearchUrl = self.config.get_relevance_api_url() + 'foaf_organization:' + uri + '"'
+    #    print("return default enrichment count 1 for organization: " + uri)
+    #    return 1
+    
+    def get_enrichment_count_field(self):
+        return 'foaf_organization'
     
     def build_term_hits_query(self, lbls):
-        solr_term_hit_query = self.config.get_relevance_solr() + "&q=XXXXX"
+        #solr_term_hit_query = self.config.get_relevance_solr()
         #labels are already quoted
         fielded_query = "PROVIDER:XXXXX OR DATA_PROVIDER:XXXXX OR provider_aggregation_edm_intermediateProvider: XXXXX"
         
@@ -289,7 +316,7 @@ class OrganizationRelevanceCounter(RelevanceCounter):
             qrs.append(fq)
         fielded_query = "(" + " OR ".join(qrs) + ")"
         fielded_query = quote_plus(fielded_query)
-        term_hits_query = solr_term_hit_query.replace('XXXXX', fielded_query)
+        term_hits_query = self.config.get_relevance_api_url() + fielded_query
         #print(term_hits_query)
         return term_hits_query
     

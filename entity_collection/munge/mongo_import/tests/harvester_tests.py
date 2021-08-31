@@ -84,7 +84,7 @@ class HarvesterTest(unittest.TestCase):
         #government of catalunia
         #entity_id = "http://data.europeana.eu/organization/1482250000004503580"
         #BNF
-        #entity_id = "http://data.europeana.eu/organization/1482250000002112001" 
+        entity_id = "http://data.europeana.eu/organization/1482250000002112001" 
         #Naturalis    
         #entity_id = "http://data.europeana.eu/organization/1482250000000370517"    
         # Timespan 
@@ -93,7 +93,7 @@ class HarvesterTest(unittest.TestCase):
         #entity_id = "http://data.europeana.eu/agent/base/60157"
                 
         # rock and roll
-        entity_id = "http://data.europeana.eu/concept/base/1643"
+        #entity_id = "http://data.europeana.eu/concept/base/1643"
         
         
         ieb = entities.ContextClassHarvesters.IndividualEntityBuilder()

@@ -53,7 +53,7 @@ class MetricsImporter:
     
     def __init__(self, harvester, database, entity_type):
         self.config = HarvesterConfig()
-        self.mongo = MongoClient(self.config.get_mongo_host(), self.config.get_mongo_port())
+        self.mongo = MongoClient(self.config.get_mongo_host())
         self.database = database
         self.entity_type = entity_type
         self.harvester = harvester

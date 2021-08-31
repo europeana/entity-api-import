@@ -4,8 +4,9 @@ class HarvesterConfig:
     
     DEFAULT_CONFIG_SECTION = 'CONFIG'
     HARVESTER_MONGO_HOST = 'harvester.mongo.host'
-    HARVESTER_MONGO_PORT = 'harvester.mongo.port'
-    HARVESTER_RELEVANCE_SOLR_URI = 'harvester.relevance.solr.core.uri'
+    #HARVESTER_MONGO_PORT = 'harvester.mongo.port'
+    #HARVESTER_RELEVANCE_SOLR_URI = 'harvester.relevance.solr.core.uri'
+    HARVESTER_RELEVANCE_API_URL = 'harvester.relevance.api.url'
     HARVESTER_RELEVANCE_RANKING_MODEL = "harvester.relevance.ranking.model"
     HARVESTER_RELEVANCE_RANKING_MODEL_DEFAULT = "default"
     HARVESTER_RELEVANCE_RANKING_MODEL_NORMALIZED = "normalized"
@@ -31,12 +32,16 @@ class HarvesterConfig:
         key = self.build_key(HarvesterConfig.HARVESTER_MONGO_HOST, harvester_name)
         return self.config.get(HarvesterConfig.DEFAULT_CONFIG_SECTION, key)
         
-    def get_mongo_port (self, harvester_name = None):
-        key = self.build_key(HarvesterConfig.HARVESTER_MONGO_PORT, harvester_name)
-        return self.config.getint(HarvesterConfig.DEFAULT_CONFIG_SECTION, key)
+    #def get_mongo_port (self, harvester_name = None):
+    #    key = self.build_key(HarvesterConfig.HARVESTER_MONGO_PORT, harvester_name)
+    #    return self.config.getint(HarvesterConfig.DEFAULT_CONFIG_SECTION, key)
     
-    def get_relevance_solr (self):
-        key = HarvesterConfig.HARVESTER_RELEVANCE_SOLR_URI
+    #def get_relevance_solr (self):
+    #    key = HarvesterConfig.HARVESTER_RELEVANCE_SOLR_URI
+    #    return self.config.get(HarvesterConfig.DEFAULT_CONFIG_SECTION, key)
+    
+    def get_relevance_api_url (self):
+        key = HarvesterConfig.HARVESTER_RELEVANCE_API_URL
         return self.config.get(HarvesterConfig.DEFAULT_CONFIG_SECTION, key)
         
     def get_pagerank_solr (self):
