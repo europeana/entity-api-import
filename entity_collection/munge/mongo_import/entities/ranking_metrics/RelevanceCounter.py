@@ -146,10 +146,12 @@ class RelevanceCounter:
         
 
     def get_total_results(self, api_search_url):
-        res = requests.get(api_search_url, verify=False)
         try:
+            res = requests.get(api_search_url, verify=False)
             return res.json()['totalResults']
-        except:
+        except Exception as ex:
+            print("INFO: cannot collect metric value when using api URL, setting value to 0: " + api_search_url)
+            print("API CALL ERROR: " + str(ex))
             return 0
         
     
@@ -162,27 +164,16 @@ class RelevanceCounter:
         #qry_labels = ["\"" + label + "\"" for label in all_labels]
         #TODO limit the number of pref labels and ensure usage fo default label
         qry_labels = ["\"" + label + "\"" for label in all_labels]
-        api_search_url = self.build_term_hits_query(qry_labels)
         
-        try:
-            term_hits = self.get_total_results(api_search_url)
-        #except:
-        #    print("Term hits computation failed for request: " + qry)
-        #    return 0
-        except (ValueError, KeyError):
-            #response parsing or retrieval errors
-            #TODO: fix too long queries issue
-            #print("cannot parse response for query: ")
-            #print(term_hits_query)
-            if(len(qry_labels) > 10):
-                try:
-                    api_search_url = self.build_term_hits_query(qry_labels[0:10])
-                    term_hits = self.get_total_results(api_search_url)
-                except (ValueError, KeyError):
-                    term_hits = 0    
-            else:    
-                print("cannot get term hits with query: " + api_search_url)
-                term_hits = 0
+        api_search_url = self.build_term_hits_query(qry_labels)
+        term_hits = self.get_total_results(api_search_url)
+        
+        if(term_hits == 0 and len(qry_labels) > 10):
+            api_search_url = self.build_term_hits_query(qry_labels[0:10])
+            term_hits = self.get_total_results(api_search_url)    
+            #if still 0 check logs:    
+            #print("cannot get term hits with query: " + api_search_url)
+            #    term_hits = 0
         
         return term_hits    
 
