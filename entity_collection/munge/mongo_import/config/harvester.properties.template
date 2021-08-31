@@ -4,18 +4,15 @@
 #database config
  
 harvester.mongo.host = mongodb://localhost:27017
+#can be overwritten for each harverster type
+#organizations.harvester.mongo.host = mongodb://localhost:27017
 #deprecated add port to host
-harvester.mongo.port = -1
+#harvester.mongo.port = -1
 
-
-#OrganizationHarvester configs
-organizations.harvester.mongo.host = mongodb://localhost:27017
-#deprecated add port to host
-organizations.harvester.mongo.port = -1
 
 #RelevanceCounter configs
-#harvester.relevance.solr.uri = http://localhost:9191/solr/search/search?wt=json&rows=0
-harvester.relevance.solr.core.uri = http://localhost:9191/solr/search_production_publish_1/select?indent=on&wt=json
+harvester.relevance.api.url=https://localhost:8080/record/v2/search.json?wskey=api2demo&rows=1&query= 
+
 harvester.relevance.ranking.model = normalized
 
 #pagerank solr 
