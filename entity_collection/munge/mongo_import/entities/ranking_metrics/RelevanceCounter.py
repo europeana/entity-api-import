@@ -150,6 +150,7 @@ class RelevanceCounter:
         try:
             return res.json()['totalResults']
         except:
+            print("INFO: cannot collect metric value when using api URL, settig value to 0: " + api_search_url)
             return 0
         
     
